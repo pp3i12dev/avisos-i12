@@ -1,0 +1,26 @@
+enum InvitedRole {
+  DIRECTOR
+  PRECEPTOR
+  TEACHER
+  STUDENT
+}
+
+model Invitation {
+  id            Int         @id @default(autoincrement())
+  // Nullable: permite invitar por telefono sin email.
+  email         String?
+  telefono      String?
+  role          InvitedRole
+  token         String      @unique @default(uuid())
+  isUsed        Boolean     @default(false)
+  expiresAt     DateTime
+  createdAt     DateTime    @default(now())
+  invitedById   Int
+  invitedBy     User        @relation("SentInvitations", fields: [invitedById], references: [id])
+  institutionId Int
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  courseId      Int?
+  course        Course?     @relation(fields: [courseId], references: [id])
+
+  @@index([institutionId, createdAt])
+}

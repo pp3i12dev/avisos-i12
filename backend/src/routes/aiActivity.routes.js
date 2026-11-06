@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { authenticate, requirePermission } from '../middlewares/auth.middleware.js';
+import * as ctrl from '../controllers/aiActivity.controller.js';
+const router = Router();
+router.use(authenticate, requirePermission('subjectContent:manage'));
+router.get('/status', (req, res) => res.json({ configured: Boolean(process.env.GEMINI_API_KEY?.trim()), model: process.env.GEMINI_MODEL || 'gemini-3.8-flash' }));
+router.post('/preview', ctrl.preview);
+router.post('/drafts', ctrl.saveDraft);
+router.put('/drafts/:activityId', ctrl.editDraft);
+router.post('/drafts/:activityId/publish', ctrl.publish);
+router.delete('/activities/:activityId', ctrl.archive);
+export default router;

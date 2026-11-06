@@ -1,0 +1,29 @@
+# Dependencias
+node_modules/
+
+# Entorno y credenciales 
+.env
+.env.local
+.env.*.local
+
+# Archivos de compilación y salida
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Archivos generados por Prisma y la base de datos
+
+# Configuración del sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Archivos subidos (storage local de desarrollo)
+uploads/
