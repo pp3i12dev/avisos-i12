@@ -3,7 +3,7 @@ import { hashPassword } from '../utils/password.js';
 import { sendPasswordResetEmail } from '../utils/mailer.js';
 import * as repo from '../repositories/passwordReset.repository.js';
 
-const generic = 'Si el correo pertenece a una cuenta de EduQuest, recibirás instrucciones para recuperar tu contraseña.';
+const generic = 'Si el correo pertenece a una cuenta de Avisos I12, recibirás instrucciones para recuperar tu contraseña.';
 const sha256 = (raw) => createHash('sha256').update(raw).digest('hex');
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -22,7 +22,7 @@ export async function requestPasswordReset({ email } = {}) {
     await sendPasswordResetEmail({ to: user.email, token, expiresAt });
   } catch (error) {
     await repo.discardToken(tokenHash);
-    console.error('[EduQuest reset] Falló el envío de correo:', error.message);
+    console.error('[Avisos I12 reset] Falló el envío de correo:', error.message);
     // Respuesta indistinguible de la de un correo inexistente.
   }
   return { message: generic };

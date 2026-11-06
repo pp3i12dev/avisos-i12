@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 import { useLogin } from '../hooks/useAuth';
-import logo from '../assets/images/logo2.png';
+import logo from '../assets/images/i12-logo.png';
 import BackgroundLayout from '../layouts/BackgroundLayout';
 import InstallPwaButton from '../components/InstallPwaButton';
 
@@ -72,11 +72,11 @@ export default function LoginView() {
 
                     {/* Una sola cabecera, integrada al formulario para aprovechar la altura móvil. */}
                     <div className="mb-5 flex w-full flex-col items-center text-center sm:mb-6">
-                        <img src={logo} alt="EduQuest" className="mb-2 h-14 w-auto max-w-[145px] object-contain sm:h-16" />
+                        <img src={logo} alt="Avisos I12" className="mb-4 h-24 w-24 object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.22)] sm:h-28 sm:w-28" />
                         <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-                            Bienvenido a <span className="bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">EduQuest</span>
+                            Bienvenido a <span className="text-red-400">Avisos I12</span>
                         </h1>
-                        <p className="mt-1.5 text-sm leading-5 text-slate-300">Ingresá a tu espacio educativo.</p>
+                        <p className="mt-1.5 text-sm leading-5 text-slate-300">Gestión académica y comunicaciones institucionales.</p>
                     </div>
 
                     {/* FORMULARIO SIN TARJETA EXTERIOR */}
@@ -244,7 +244,7 @@ export default function LoginView() {
                                 <button
                                     type="submit"
                                     disabled={loginMutation.isPending}
-                                    className="group flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-3 text-sm font-bold text-white shadow-[0_8px_30px_rgba(37,99,235,0.24)] transition-all duration-200 hover:-translate-y-0.5 hover:from-blue-500 hover:to-blue-400 hover:shadow-[0_12px_35px_rgba(37,99,235,0.32)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                                    className="group flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-red-700 to-red-600 px-5 py-3 text-sm font-bold text-white shadow-[0_8px_30px_rgba(185,28,28,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:from-red-600 hover:to-red-500 hover:shadow-[0_12px_35px_rgba(185,28,28,0.28)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                                 >
                                     {loginMutation.isPending ? (
                                         <>
@@ -291,7 +291,7 @@ export default function LoginView() {
             </main>
 
             <footer className="relative z-10 w-full px-4 pb-3 text-center text-[11px] text-slate-500">
-                © {new Date().getFullYear()} EduQuest · Acceso institucional seguro
+                © {new Date().getFullYear()} Instituto Superior de Formación Técnica Nº12 · Acceso seguro
             </footer>
         </div>
     );

@@ -102,7 +102,7 @@ const configure = () => {
     webpush.setVapidDetails(subject, publicKey, privateKey);
     configured = true;
   } catch (error) {
-    console.error('[EduQuest][PUSH] Configuración VAPID inválida:', error.message);
+    console.error('[Avisos I12][PUSH] Configuración VAPID inválida:', error.message);
     return false;
   }
   return true;
@@ -129,9 +129,9 @@ export async function sendTestWebPush(reqUser, endpoint) {
     await webpush.sendNotification({
       endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth },
     }, JSON.stringify({
-      title: 'EduQuest · Notificación de prueba',
+      title: 'Avisos I12 · Notificación de prueba',
       body: '¡Listo! Tu navegador recibió una prueba. Los avisos escolares usarán este mismo canal.',
-      url: '/dashboard', tag: `eduquest-test-${now}`,
+      url: '/dashboard', tag: `avisos-i12-test-${now}`,
     }), { TTL: 300 });
     return { accepted: true, message: 'El servicio Push aceptó el mensaje. Comprobá las notificaciones del dispositivo.' };
   } catch (error) {
@@ -146,33 +146,33 @@ export async function sendTestWebPush(reqUser, endpoint) {
 export function pushPreview(notification) {
   const type = notification.type;
   if (type === 'STUDENT_REGISTRATION_REQUEST') return {
-    title: 'EduQuest · Nueva inscripción pendiente',
+    title: 'Avisos I12 · Nueva inscripción pendiente',
     body: 'Una solicitud de alumno necesita revisión institucional. Entrá a Gestión de usuarios.',
     url: '/dashboard/students/requests',
   };
   if (type === 'EARLY_NOTICE_PENDING') return {
-    title: 'EduQuest · Aviso PROVISIONAL',
+    title: 'Avisos I12 · Aviso PROVISIONAL',
     body: 'PENDIENTE DE CONFIRMACIÓN DOCENTE. Las clases siguen programadas hasta recibir confirmación.',
     url: '/dashboard/early-notices',
   };
   if (type === 'EARLY_NOTICE_REJECTED') return {
-    title: 'EduQuest · Aviso RECHAZADO',
-    body: 'El aviso fue rechazado. Consultá EduQuest para verificar el horario oficial.',
+    title: 'Avisos I12 · Aviso RECHAZADO',
+    body: 'El aviso fue rechazado. Consultá Avisos I12 para verificar el horario oficial.',
     url: '/dashboard/early-notices',
   };
   if (type === 'EARLY_NOTICE_CONFIRMED') return {
-    title: 'EduQuest · Aviso CONFIRMADO',
-    body: 'El docente confirmó el aviso. Ingresá a EduQuest para consultar los detalles.',
+    title: 'Avisos I12 · Aviso CONFIRMADO',
+    body: 'El docente confirmó el aviso. Ingresá a Avisos I12 para consultar los detalles.',
     url: '/dashboard/early-notices',
   };
   if (type.startsWith('EARLY_NOTICE_')) return {
-    title: 'EduQuest · Aviso actualizado',
-    body: 'Se modificó un aviso temprano. Consultá su estado actualizado en EduQuest.',
+    title: 'Avisos I12 · Aviso actualizado',
+    body: 'Se modificó un aviso temprano. Consultá su estado actualizado en Avisos I12.',
     url: '/dashboard/early-notices',
   };
   return {
-    title: notification.type === 'EVENT_CANCELLED' ? 'EduQuest · Comunicación cancelada' : 'EduQuest · Comunicación institucional',
-    body: 'Hay novedades de tu institución. Ingresá a EduQuest para consultar la comunicación.',
+    title: notification.type === 'EVENT_CANCELLED' ? 'Avisos I12 · Comunicación cancelada' : 'Avisos I12 · Comunicación institucional',
+    body: 'Hay novedades de tu institución. Ingresá a Avisos I12 para consultar la comunicación.',
     url: '/dashboard/institution-communications',
   };
 }
@@ -227,7 +227,7 @@ export async function processWebPushQueue() {
         const result = await webpush.sendNotification({
           endpoint: delivery.subscription.endpoint,
           keys: { p256dh: delivery.subscription.p256dh, auth: delivery.subscription.auth },
-        }, JSON.stringify({ ...msg, tag: `eduquest-${delivery.notification.id}` }), { TTL: 3600 });
+        }, JSON.stringify({ ...msg, tag: `avisos-i12-${delivery.notification.id}` }), { TTL: 3600 });
         await db.webPushDelivery.update({ where: { id }, data: { status: 'SENT', sentAt: new Date(), lastError: null } });
       } catch (error) {
         const status = error?.statusCode;
@@ -239,17 +239,17 @@ export async function processWebPushQueue() {
           status: gone || forbidden || (attempt?.attempts ?? 3) >= 3 ? 'FAILED' : 'PENDING',
           lastError: String(error?.message || error).slice(0, 500),
         } });
-        console.error('[EduQuest][PUSH] Entrega fallida', id, status || error.message);
+        console.error('[Avisos I12][PUSH] Entrega fallida', id, status || error.message);
       }
     }
-  } catch (error) { console.error('[EduQuest][PUSH] Error de procesador', error); }
+  } catch (error) { console.error('[Avisos I12][PUSH] Error de procesador', error); }
   finally { running = false; }
 }
 export function startWebPushProcessor() {
   if (process.env.WEB_PUSH_ENABLED !== 'true') {
-    console.info('[EduQuest][PUSH] Desactivado hasta configurar VAPID y WEB_PUSH_ENABLED=true'); return;
+    console.info('[Avisos I12][PUSH] Desactivado hasta configurar VAPID y WEB_PUSH_ENABLED=true'); return;
   }
-  if (!webPushConfigured()) { console.warn('[EduQuest][PUSH] Faltan credenciales VAPID válidas'); return; }
+  if (!webPushConfigured()) { console.warn('[Avisos I12][PUSH] Faltan credenciales VAPID válidas'); return; }
   if (interval) return;
   void processWebPushQueue();
   interval = setInterval(() => void processWebPushQueue(), 15000);

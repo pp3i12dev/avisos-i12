@@ -3,7 +3,7 @@ import { listSignupRequests, listSignupCourseGroups, reviewSignupRequests } from
 const run = async (res, fn) => {
   try { return res.json(await fn()); }
   catch (error) {
-    if (!error.status) console.error('[EduQuest][Inscripciones]', error);
+    if (!error.status) console.error('[Avisos I12][Inscripciones]', error);
     return res.status(error.status || 500).json({ message: error.status ? error.message : 'Error interno' });
   }
 };

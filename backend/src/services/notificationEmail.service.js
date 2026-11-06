@@ -58,20 +58,20 @@ export const processPendingNotificationEmails = async () => {
         }
         // SMTP aceptado no significa necesariamente entregado al buzón.
         await repo.markSent(id, info.messageId);
-        console.info(`[EduQuest][EMAIL] Envío aceptado: entrega ${id}`);
+        console.info(`[Avisos I12][EMAIL] Envío aceptado: entrega ${id}`);
       } catch (error) {
-        console.error(`[EduQuest][EMAIL] Error en entrega ${id}:`, error);
+        console.error(`[Avisos I12][EMAIL] Error en entrega ${id}:`, error);
         if (delivery) {
           try {
             await repo.markFailure(id, error.message || String(error), delivery.attempts);
           } catch (dbError) {
-            console.error(`[EduQuest][EMAIL] No se pudo registrar fallo ${id}:`, dbError);
+            console.error(`[Avisos I12][EMAIL] No se pudo registrar fallo ${id}:`, dbError);
           }
         }
       }
     }
   } catch (error) {
-    console.error('[EduQuest][EMAIL] Error consultando entregas:', error);
+    console.error('[Avisos I12][EMAIL] Error consultando entregas:', error);
   } finally {
     processing = false;
   }
@@ -79,11 +79,11 @@ export const processPendingNotificationEmails = async () => {
 
 export const startNotificationEmailProcessor = () => {
   if (process.env.NOTIFICATION_EMAIL_ENABLED !== 'true') {
-    console.info('[EduQuest][EMAIL] Procesador desactivado');
+    console.info('[Avisos I12][EMAIL] Procesador desactivado');
     return;
   }
   if (timer) return;
-  console.info('[EduQuest][EMAIL] Procesador iniciado (cada 30 segundos)');
+  console.info('[Avisos I12][EMAIL] Procesador iniciado (cada 30 segundos)');
   void processPendingNotificationEmails();
   timer = setInterval(() => void processPendingNotificationEmails(), INTERVAL_MS);
   timer.unref?.();

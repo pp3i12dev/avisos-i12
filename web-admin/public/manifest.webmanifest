@@ -1,14 +1,14 @@
 {
-  "name": "EduQuest — Portal educativo",
-  "short_name": "EduQuest",
+  "name": "Instituto Superior de Formación Técnica Nº12 · Avisos I12",
+  "short_name": "Avisos I12",
   "id": "/",
   "start_url": "/login",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#243a85",
+  "background_color": "#101114",
+  "theme_color": "#B91C1C",
   "lang": "es-AR",
-  "description": "Aprendizaje, gestión académica y avisos institucionales",
+  "description": "Gestión académica, avisos tempranos y comunicaciones del ISFT Nº12",
   "icons": [
     {
       "src": "/icons/icon-192.png",

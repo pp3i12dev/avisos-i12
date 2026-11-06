@@ -1,4 +1,4 @@
-export function registerEduQuestPwa() {
+export function registerAvisosI12Pwa() {
   if (typeof document !== 'undefined' && !document.querySelector('link[rel="manifest"]')) {
     const manifest = document.createElement('link'); manifest.rel = 'manifest'; manifest.href = '/manifest.webmanifest';
     document.head.appendChild(manifest);
@@ -13,7 +13,7 @@ export function registerEduQuestPwa() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .catch(error => console.warn('[EduQuest] Service Worker no disponible', error));
+        .catch(error => console.warn('[Avisos I12] Service Worker no disponible', error));
     }, { once: true });
   }
 }

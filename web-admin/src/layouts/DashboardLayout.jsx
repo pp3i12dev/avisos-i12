@@ -33,7 +33,7 @@ import WebPushSettings from '../components/WebPushSettings';
 import InstallPwaButton from '../components/InstallPwaButton';
 import { revokePushOnLogout } from '../services/webPush';
 import BackgroundLayout from './BackgroundLayout';
-import logo from '../assets/images/logo2.png';
+import logo from '../assets/images/i12-logo.png';
 
 function getRoles(user) {
     if (!Array.isArray(user?.roles)) return [];
@@ -128,7 +128,7 @@ function SidebarLink({
                         size={19}
                         strokeWidth={isActive ? 2.3 : 1.9}
                         className={`shrink-0 ${isActive
-                                ? 'text-blue-400'
+                                ? 'text-red-400'
                                 : 'text-slate-400 group-hover:text-blue-300'
                             }`}
                     />
@@ -257,7 +257,7 @@ export default function DashboardLayout() {
         : (['students', 'teachers', 'preceptors', 'directors', 'invitations'].includes(routePart)
             ? 'Gestión de usuarios'
             : ['careers', 'courses', 'subjects', 'subject-schedules', 'institution', 'assignments'].includes(routePart)
-                ? 'Gestión académica' : 'EduQuest');
+                ? 'Gestión académica' : 'Avisos I12');
 
     // Respeta el historial del usuario. Si llegó por enlace directo, utiliza un destino seguro.
     const previousView = () => {
@@ -281,7 +281,7 @@ export default function DashboardLayout() {
         setMobileMenuOpen(false);
         setProfileMenuOpen(false);
         try { await revokePushOnLogout(token); }
-        catch (error) { console.warn('[EduQuest] No se pudo desvincular Push de este dispositivo:', error); }
+        catch (error) { console.warn('[Avisos I12] No se pudo desvincular Push de este dispositivo:', error); }
         logoutContext();
     };
 
@@ -294,7 +294,7 @@ export default function DashboardLayout() {
             <div className="relative min-h-screen text-white">
 
                 {/* CAPA OSCURA GENERAL */}
-                <div className="pointer-events-none fixed inset-0 z-0 bg-slate-950/35" />
+                <div className="pointer-events-none fixed inset-0 z-0 bg-black/15" />
 
                 {/* HEADER SUPERIOR */}
                 <header className="sticky top-0 z-40 h-[76px] border-b border-slate-700/60 bg-slate-950/90 shadow-lg shadow-black/10 backdrop-blur-xl">
@@ -322,7 +322,7 @@ export default function DashboardLayout() {
                             >
                                 <img
                                     src={logo}
-                                    alt="EduQuest"
+                                    alt="Avisos I12"
                                     className="h-11 w-auto max-w-[110px] object-contain sm:h-12"
                                 />
                             </Link>
@@ -345,7 +345,7 @@ export default function DashboardLayout() {
                             <WebPushSettings compact />
                             <div className="hidden items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/5 px-3 py-1.5 text-xs text-emerald-300 xl:flex">
                                 <ShieldCheck size={14} />
-                                Sesión activa
+                                Conexión segura
                             </div>
 
                             {/* PERFIL DESPLEGABLE */}
@@ -409,7 +409,7 @@ export default function DashboardLayout() {
                                                         </p>
 
                                                         <p className="mt-1 truncate text-xs text-slate-400">
-                                                            {user?.email || 'Cuenta EduQuest'}
+                                                            {user?.email || 'Cuenta Avisos I12'}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -527,11 +527,11 @@ export default function DashboardLayout() {
                                         />
 
                                         <p className="text-sm font-semibold text-slate-200">
-                                            Seguí avanzando
+                                            Instituto Superior de Formación Técnica Nº12
                                         </p>
 
                                         <p className="mt-2 text-xs leading-relaxed text-slate-400">
-                                            Cada desafío es una oportunidad para aprender.
+                                            Comunicación clara para toda la comunidad educativa.
                                         </p>
                                     </div>
                                 )}
@@ -567,7 +567,7 @@ export default function DashboardLayout() {
                             <div className="border-b border-slate-700/40 bg-slate-950/30 px-4 py-3 backdrop-blur-sm sm:px-6 lg:px-8">
                                 <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                                     <button type="button" onClick={previousView}
-                                        className="mr-3 inline-flex items-center gap-2 rounded-xl border-2 border-amber-200 bg-amber-400 px-4 py-2.5 text-sm font-extrabold text-slate-950 shadow-lg shadow-amber-500/25 transition hover:bg-amber-300 hover:scale-[1.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                                        className="mr-3 inline-flex items-center gap-2 rounded-xl border-2 border-red-200 bg-red-500 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-red-500/15 transition hover:bg-red-400 hover:scale-[1.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                                         aria-label="Volver a la vista anterior">
                                         <ArrowLeft size={20} strokeWidth={3} /> Volver atrás
                                     </button>
@@ -613,7 +613,7 @@ export default function DashboardLayout() {
                             <div className="flex items-center justify-between border-b border-slate-800 px-5 py-5">
                                 <img
                                     src={logo}
-                                    alt="EduQuest"
+                                    alt="Avisos I12"
                                     className="h-12 w-auto object-contain"
                                 />
 
@@ -637,7 +637,7 @@ export default function DashboardLayout() {
                                         </p>
 
                                         <p className="truncate text-xs text-slate-400">
-                                            {user?.email || 'Usuario EduQuest'}
+                                            {user?.email || 'Usuario Avisos I12'}
                                         </p>
                                     </div>
                                 </div>

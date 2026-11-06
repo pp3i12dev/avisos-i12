@@ -128,7 +128,7 @@ export async function reviewSignupRequests(requester, body, decision) {
           status: decision, reason })
       ));
       results.forEach((result, index) => {
-        if (result.status === 'rejected') console.warn('[EduQuest][Inscripciones] Correo no entregado para usuario',
+        if (result.status === 'rejected') console.warn('[Avisos I12][Inscripciones] Correo no entregado para usuario',
           affected[i + index].id, result.reason?.message);
       });
     }
@@ -165,6 +165,6 @@ export async function safeQueueSignupForAuthorities({ studentUserId, institution
       }
     });
   } catch (error) {
-    console.error('[EduQuest][Inscripciones] No se pudo registrar aviso para autoridades:', error);
+    console.error('[Avisos I12][Inscripciones] No se pudo registrar aviso para autoridades:', error);
   }
 }
