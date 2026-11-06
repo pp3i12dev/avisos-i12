@@ -24,13 +24,16 @@
 /* Avisos I12 | Identidad institucional. Tailwind v4 theme variables. */
 @theme {
   --font-sans: "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
-  --color-blue-50: #fff1f2; --color-blue-100: #ffe4e6; --color-blue-200: #fecdd3;
-  --color-blue-300: #fda4af; --color-blue-400: #fb7185; --color-blue-500: #e11d48;
-  --color-blue-600: #be123c; --color-blue-700: #9f1239; --color-blue-800: #881337; --color-blue-900: #4c0519; --color-blue-950: #310610;
-  --color-sky-300: #fda4af; --color-sky-400: #fb7185; --color-sky-500: #e11d48; --color-sky-600: #be123c;
-  --color-cyan-300: #fda4af; --color-cyan-400: #fb7185; --color-cyan-500: #e11d48; --color-cyan-600: #be123c;
+  --color-blue-50: #fff1f1; --color-blue-100: #fce8e8; --color-blue-200: #f7c7c7;
+  --color-blue-300: #efa1a1; --color-blue-400: #de5555; --color-blue-500: #c61515;
+  --color-blue-600: #c61515; --color-blue-700: #b31212; --color-blue-800: #951010; --color-blue-900: #741010; --color-blue-950: #410909;
+  --color-sky-300: #efa1a1; --color-sky-400: #de5555; --color-sky-500: #c61515; --color-sky-600: #b31212;
+  --color-cyan-300: #efa1a1; --color-cyan-400: #de5555; --color-cyan-500: #c61515; --color-cyan-600: #b31212;
 }
-:root { color-scheme: dark; font-family: "Segoe UI", Inter, system-ui, sans-serif; }
-body { margin: 0; min-width: 320px; background: #101114; }
-::selection { background: #9f1239; color: #fff; }
-:focus-visible { outline-color: #fb7185; }
+:root { color-scheme: light; font-family: "Segoe UI", Inter, system-ui, sans-serif; }
+body { margin: 0; min-width: 320px; background: #F7F7F8; color: #20242B; }
+::selection { background: #C61515; color: #fff; }
+:focus-visible { outline-color: #C61515; }
+
+/* Avisos I12 — superficies claras para la identidad institucional. */
+:root { --i12-red: #C61515; --i12-red-dark: #B31212; --i12-bg: #F7F7F8; --i12-card: #EEF0F2; --i12-sidebar: #5A606A; --i12-border: #D8DDE3; --i12-text: #22252B; }

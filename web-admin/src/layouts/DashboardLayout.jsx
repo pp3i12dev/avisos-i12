@@ -113,28 +113,28 @@ function SidebarLink({
             title={collapsed ? label : undefined}
             className={({ isActive }) =>
                 `group relative flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 text-sm font-medium transition-all duration-200 ${isActive
-                    ? 'border-blue-500/25 bg-blue-500/15 text-blue-300 shadow-sm shadow-blue-950/10'
-                    : 'border-transparent text-slate-400 hover:border-slate-700/70 hover:bg-slate-800/70 hover:text-white'
+                    ? 'border-[#EFADAD] bg-[#FCEAEA] text-[#9F1111] shadow-sm shadow-black/10'
+                    : 'border-transparent text-[#F3F4F6] hover:border-white/20 hover:bg-white/10 hover:text-white'
                 } ${collapsed ? 'justify-center' : ''}`
             }
         >
             {({ isActive }) => (
                 <>
                     {isActive && (
-                        <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-blue-400" />
+                        <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-[#C61515]" />
                     )}
 
                     <Icon
                         size={19}
                         strokeWidth={isActive ? 2.3 : 1.9}
                         className={`shrink-0 ${isActive
-                                ? 'text-red-400'
-                                : 'text-slate-400 group-hover:text-blue-300'
+                                ? 'text-[#B31212]'
+                                : 'text-[#ECEDEF] group-hover:text-white'
                             }`}
                     />
 
                     {collapsed && unreadCount > 0 && (
-                        <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                        <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C61515] px-1 text-[10px] font-bold text-white">
                             {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
                     )}
@@ -146,7 +146,7 @@ function SidebarLink({
                             </span>
 
                             {unreadCount > 0 && (
-                                <span aria-label={`${unreadCount} notificaciones sin leer`} className="inline-flex min-w-6 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-xs font-bold text-white">
+                                <span aria-label={`${unreadCount} notificaciones sin leer`} className="inline-flex min-w-6 items-center justify-center rounded-full bg-[#C61515] px-1.5 py-0.5 text-xs font-bold text-white">
                                     {unreadCount > 99 ? '99+' : unreadCount}
                                 </span>
                             )}
@@ -154,7 +154,7 @@ function SidebarLink({
                             {isActive && (
                                 <ChevronRight
                                     size={15}
-                                    className="text-blue-400"
+                                    className="text-[#C61515]"
                                 />
                             )}
                         </>
@@ -168,7 +168,7 @@ function SidebarLink({
 function UserAvatar({ user, size = 'normal' }) {
     return (
         <div
-            className={`flex shrink-0 items-center justify-center rounded-xl border border-blue-400/20 bg-gradient-to-br from-blue-600/30 to-cyan-500/10 font-bold text-blue-200 ${size === 'large'
+            className={`flex shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/15 font-bold text-white ${size === 'large'
                     ? 'h-12 w-12 text-base'
                     : 'h-10 w-10 text-sm'
                 }`}
@@ -291,13 +291,13 @@ export default function DashboardLayout() {
 
     return (
         <BackgroundLayout>
-            <div className="relative min-h-screen text-white">
+            <div className="relative min-h-screen text-slate-900">
 
                 {/* CAPA OSCURA GENERAL */}
-                <div className="pointer-events-none fixed inset-0 z-0 bg-black/15" />
+                <div className="pointer-events-none fixed inset-0 z-0 bg-transparent" />
 
                 {/* HEADER SUPERIOR */}
-                <header className="sticky top-0 z-40 h-[76px] border-b border-slate-700/60 bg-slate-950/90 shadow-lg shadow-black/10 backdrop-blur-xl">
+                <header className="sticky top-0 z-40 h-[76px] border-b border-[#AC1111] bg-[#C61515] shadow-lg shadow-[#8F0E0E]/15 backdrop-blur-xl">
                     <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
 
                         {/* IZQUIERDA */}
@@ -308,7 +308,7 @@ export default function DashboardLayout() {
                                 type="button"
                                 onClick={() => setMobileMenuOpen(true)}
                                 aria-label="Abrir menú de navegación"
-                                className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-slate-700 bg-slate-800/70 text-slate-300 transition-colors hover:bg-slate-700 hover:text-white lg:hidden"
+                                className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20 lg:hidden"
                             >
                                 <Menu size={21} />
                             </button>
@@ -327,10 +327,10 @@ export default function DashboardLayout() {
                                 />
                             </Link>
 
-                            <div className="hidden h-8 w-px bg-slate-700/80 sm:block" />
+                            <div className="hidden h-8 w-px bg-white/40 sm:block" />
 
                             <div className="min-w-0">
-                                <p className="max-w-[200px] truncate text-[9px] font-semibold uppercase tracking-[0.09em] text-sky-400 sm:max-w-[400px] sm:text-[10px] sm:tracking-[0.14em]">
+                                <p className="max-w-[200px] truncate text-[9px] font-semibold uppercase tracking-[0.09em] text-white/85 sm:max-w-[400px] sm:text-[10px] sm:tracking-[0.14em]">
                                     {headerEyebrow}
                                 </p>
                                 <h1 className="mt-0.5 max-w-[165px] truncate text-xs font-bold text-white sm:max-w-[420px] sm:text-base" title={headerTitle}>
@@ -343,7 +343,7 @@ export default function DashboardLayout() {
                         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                             <InstallPwaButton compact />
                             <WebPushSettings compact />
-                            <div className="hidden items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/5 px-3 py-1.5 text-xs text-emerald-300 xl:flex">
+                            <div className="hidden items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs text-white xl:flex">
                                 <ShieldCheck size={14} />
                                 Conexión segura
                             </div>
@@ -357,7 +357,7 @@ export default function DashboardLayout() {
                                     }
                                     aria-expanded={profileMenuOpen}
                                     aria-label="Opciones de usuario"
-                                    className="flex cursor-pointer items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 transition-colors hover:border-slate-700 hover:bg-slate-800/70"
+                                    className="flex cursor-pointer items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 transition-colors hover:border-white/25 hover:bg-white/10"
                                 >
                                     <UserAvatar user={user} />
 
@@ -366,7 +366,7 @@ export default function DashboardLayout() {
                                             {fullName}
                                         </p>
 
-                                        <p className="max-w-[170px] truncate text-xs text-slate-400">
+                                        <p className="max-w-[170px] truncate text-xs text-white/80">
                                             {displayRoles.length
                                                 ? ROLE_LABELS[displayRoles[0]] ||
                                                 displayRoles[0]
@@ -376,7 +376,7 @@ export default function DashboardLayout() {
 
                                     <ChevronDown
                                         size={16}
-                                        className={`hidden text-slate-400 transition-transform md:block ${profileMenuOpen
+                                        className={`hidden text-white/80 transition-transform md:block ${profileMenuOpen
                                                 ? 'rotate-180'
                                                 : ''
                                             }`}
@@ -394,9 +394,9 @@ export default function DashboardLayout() {
                                             className="fixed inset-0 z-40 cursor-default"
                                         />
 
-                                        <div className="absolute right-0 top-full z-50 mt-3 w-[280px] overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl shadow-black/50">
+                                        <div className="absolute right-0 top-full z-50 mt-3 w-[280px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10">
 
-                                            <div className="border-b border-slate-800 p-4">
+                                            <div className="border-b border-slate-200 p-4">
                                                 <div className="flex items-center gap-3">
                                                     <UserAvatar
                                                         user={user}
@@ -404,11 +404,11 @@ export default function DashboardLayout() {
                                                     />
 
                                                     <div className="min-w-0">
-                                                        <p className="truncate text-sm font-semibold text-white">
+                                                        <p className="truncate text-sm font-semibold text-slate-900">
                                                             {fullName}
                                                         </p>
 
-                                                        <p className="mt-1 truncate text-xs text-slate-400">
+                                                        <p className="mt-1 truncate text-xs text-slate-600">
                                                             {user?.email || 'Cuenta Avisos I12'}
                                                         </p>
                                                     </div>
@@ -418,7 +418,7 @@ export default function DashboardLayout() {
                                                     {displayRoles.map((role) => (
                                                         <span
                                                             key={role}
-                                                            className="rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[10px] font-medium text-blue-300"
+                                                            className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-medium text-rose-700"
                                                         >
                                                             {ROLE_LABELS[role] || role}
                                                         </span>
@@ -432,7 +432,7 @@ export default function DashboardLayout() {
                                                     onClick={() =>
                                                         setProfileMenuOpen(false)
                                                     }
-                                                    className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-sm text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
+                                                    className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-sm text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950"
                                                 >
                                                     <UserRound size={18} />
                                                     Mi perfil
@@ -460,7 +460,7 @@ export default function DashboardLayout() {
 
                     {/* SIDEBAR ESCRITORIO */}
                     <aside
-                        className={`sticky top-[76px] hidden h-[calc(100vh-76px)] shrink-0 flex-col border-r border-slate-700/60 bg-slate-950/85 backdrop-blur-xl transition-[width] duration-300 lg:flex ${sidebarWidth}`}
+                        className={`sticky top-[76px] hidden h-[calc(100vh-76px)] shrink-0 flex-col border-r border-[#4A5059] bg-[#5A606A] transition-[width] duration-300 lg:flex ${sidebarWidth}`}
                     >
                         <div className="flex min-h-0 flex-1 flex-col p-3">
 
@@ -472,7 +472,7 @@ export default function DashboardLayout() {
                                     }`}
                             >
                                 {!sidebarCollapsed && (
-                                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#E3E5E8]">
                                         Navegación
                                     </span>
                                 )}
@@ -492,7 +492,7 @@ export default function DashboardLayout() {
                                             ? 'Expandir menú'
                                             : 'Contraer menú'
                                     }
-                                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-800 hover:text-white"
+                                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-white/85 transition-colors hover:bg-white/10 hover:text-white"
                                 >
                                     {sidebarCollapsed ? (
                                         <PanelLeftOpen size={19} />
@@ -520,17 +520,17 @@ export default function DashboardLayout() {
                             <div className="mt-auto pt-6">
 
                                 {!sidebarCollapsed && (
-                                    <div className="mb-4 rounded-xl border border-blue-500/15 bg-gradient-to-br from-blue-500/10 to-slate-900/30 p-4">
+                                    <div className="mb-4 rounded-xl border border-white/15 bg-white/10 p-4">
                                         <Sparkles
                                             size={19}
-                                            className="mb-3 text-blue-400"
+                                            className="mb-3 text-[#C61515]"
                                         />
 
-                                        <p className="text-sm font-semibold text-slate-200">
+                                        <p className="text-sm font-semibold text-white">
                                             Instituto Superior de Formación Técnica Nº12
                                         </p>
 
-                                        <p className="mt-2 text-xs leading-relaxed text-slate-400">
+                                        <p className="mt-2 text-xs leading-relaxed text-[#E3E5E8]">
                                             Comunicación clara para toda la comunidad educativa.
                                         </p>
                                     </div>
@@ -544,7 +544,7 @@ export default function DashboardLayout() {
                                             ? 'Cerrar sesión'
                                             : undefined
                                     }
-                                    className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border border-rose-500/10 px-3 py-3 text-sm font-medium text-rose-400 transition-colors hover:border-rose-500/20 hover:bg-rose-500/10 ${sidebarCollapsed
+                                    className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border border-white/20 px-3 py-3 text-sm font-medium text-white transition-colors hover:border-white/30 hover:bg-white/10 ${sidebarCollapsed
                                             ? 'justify-center'
                                             : ''
                                         }`}
@@ -564,16 +564,16 @@ export default function DashboardLayout() {
 
                         {/* BARRA DE UBICACIÓN */}
                         {!isRoot && (
-                            <div className="border-b border-slate-700/40 bg-slate-950/30 px-4 py-3 backdrop-blur-sm sm:px-6 lg:px-8">
+                            <div className="border-b border-slate-200/40 bg-white/80 px-4 py-3 backdrop-blur-sm sm:px-6 lg:px-8">
                                 <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                                     <button type="button" onClick={previousView}
-                                        className="mr-3 inline-flex items-center gap-2 rounded-xl border-2 border-red-200 bg-red-500 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-red-500/15 transition hover:bg-red-400 hover:scale-[1.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                                        className="mr-3 inline-flex items-center gap-2 rounded-xl border-2 border-red-200 bg-rose-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-red-500/15 transition hover:bg-[#C61515] hover:scale-[1.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                                         aria-label="Volver a la vista anterior">
                                         <ArrowLeft size={20} strokeWidth={3} /> Volver atrás
                                     </button>
                                     <Link
                                         to="/dashboard"
-                                        className="inline-flex cursor-pointer items-center gap-2 text-slate-400 transition-colors hover:text-blue-300"
+                                        className="inline-flex cursor-pointer items-center gap-2 text-slate-600 transition-colors hover:text-rose-700"
                                     >
                                         <LayoutDashboard size={15} />
                                         Panel principal
@@ -584,7 +584,7 @@ export default function DashboardLayout() {
                                         className="text-slate-600"
                                     />
 
-                                    <span className="font-medium text-slate-200">
+                                    <span className="font-medium text-slate-800">
                                         {currentPage}
                                     </span>
                                 </div>
@@ -608,9 +608,9 @@ export default function DashboardLayout() {
                             className="absolute inset-0 cursor-pointer bg-black/70 backdrop-blur-sm"
                         />
 
-                        <aside className="absolute inset-y-0 left-0 flex w-[min(320px,88vw)] flex-col border-r border-slate-700 bg-slate-950 shadow-2xl">
+                        <aside className="absolute inset-y-0 left-0 flex w-[min(320px,88vw)] flex-col border-r border-[#4A5059] bg-[#5A606A] shadow-2xl">
 
-                            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-5">
+                            <div className="flex items-center justify-between border-b border-white/15 px-5 py-5">
                                 <img
                                     src={logo}
                                     alt="Avisos I12"
@@ -621,13 +621,13 @@ export default function DashboardLayout() {
                                     type="button"
                                     onClick={closeMobileMenu}
                                     aria-label="Cerrar menú"
-                                    className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white"
+                                    className="cursor-pointer rounded-lg p-2 text-white hover:bg-white/10"
                                 >
                                     <X size={21} />
                                 </button>
                             </div>
 
-                            <div className="border-b border-slate-800 p-5">
+                            <div className="border-b border-white/15 p-5">
                                 <div className="flex items-center gap-3">
                                     <UserAvatar user={user} />
 
@@ -636,7 +636,7 @@ export default function DashboardLayout() {
                                             {fullName}
                                         </p>
 
-                                        <p className="truncate text-xs text-slate-400">
+                                        <p className="truncate text-xs text-white/80">
                                             {user?.email || 'Usuario Avisos I12'}
                                         </p>
                                     </div>
@@ -644,7 +644,7 @@ export default function DashboardLayout() {
                             </div>
 
                             <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                                <p className="mb-4 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                <p className="mb-4 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#E3E5E8]">
                                     Navegación
                                 </p>
 
@@ -660,11 +660,11 @@ export default function DashboardLayout() {
                                 </nav>
                             </div>
 
-                            <div className="border-t border-slate-800 p-4">
+                            <div className="border-t border-white/15 p-4">
                                 <button
                                     type="button"
                                     onClick={handleLogout}
-                                    className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-sm font-medium text-rose-400 hover:bg-rose-500/10"
+                                    className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-medium text-white hover:bg-white/20"
                                 >
                                     <LogOut size={18} />
                                     Cerrar sesión

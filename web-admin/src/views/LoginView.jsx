@@ -48,10 +48,10 @@ export default function LoginView() {
         'No pudimos iniciar sesión. Verificá tus credenciales e intentá nuevamente.';
 
     const inputBase =
-        'w-full rounded-xl border bg-slate-950/65 py-3 pl-12 pr-12 text-sm text-white shadow-sm outline-none backdrop-blur-sm transition-all placeholder:text-slate-500 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10';
+        'w-full rounded-xl border bg-white/80 py-3 pl-12 pr-12 text-sm text-slate-900 shadow-sm outline-none backdrop-blur-sm transition-all placeholder:text-slate-600 focus:border-rose-500 focus:ring-4 focus:ring-rose-100';
 
     return (
-        <div className="relative flex min-h-[100dvh] flex-col overflow-x-hidden bg-slate-950 text-white">
+        <div className="relative flex min-h-[100dvh] flex-col overflow-x-hidden bg-white text-slate-900">
 
             {/* FONDO ORIGINAL */}
             <div className="pointer-events-none absolute inset-0 z-0">
@@ -59,11 +59,11 @@ export default function LoginView() {
             </div>
 
             {/* CAPAS VISUALES */}
-            <div className="pointer-events-none absolute inset-0 z-0 bg-slate-950/65" />
+            <div className="pointer-events-none absolute inset-0 z-0 bg-white/80" />
 
-            <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-slate-950/60 via-slate-950/20 to-slate-950/90" />
+            <div className="pointer-events-none absolute inset-0 z-0 bg-transparent" />
 
-            <div className="pointer-events-none absolute left-1/2 top-[40%] z-0 h-[480px] w-[480px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600/10 blur-[110px]" />
+            <div className="pointer-events-none absolute left-1/2 top-[40%] z-0 h-[480px] w-[480px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-100/40 blur-[110px]" />
 
             {/* CONTENIDO CENTRAL */}
             <main className="relative z-10 flex w-full flex-1 items-center justify-center px-4 py-5 sm:px-8 sm:py-6">
@@ -73,10 +73,10 @@ export default function LoginView() {
                     {/* Una sola cabecera, integrada al formulario para aprovechar la altura móvil. */}
                     <div className="mb-5 flex w-full flex-col items-center text-center sm:mb-6">
                         <img src={logo} alt="Avisos I12" className="mb-4 h-24 w-24 object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.22)] sm:h-28 sm:w-28" />
-                        <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-                            Bienvenido a <span className="text-red-400">Avisos I12</span>
+                        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+                            Bienvenido a <span className="text-rose-700">Avisos I12</span>
                         </h1>
-                        <p className="mt-1.5 text-sm leading-5 text-slate-300">Gestión académica y comunicaciones institucionales.</p>
+                        <p className="mt-1.5 text-sm leading-5 text-slate-700">Gestión académica y comunicaciones institucionales.</p>
                     </div>
 
                     {/* FORMULARIO SIN TARJETA EXTERIOR */}
@@ -86,11 +86,11 @@ export default function LoginView() {
                         {loginMutation.isError && (
                             <div
                                 role="alert"
-                                className="mb-3 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-950/50 p-4 text-sm text-red-200 backdrop-blur-md"
+                                className="mb-3 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-50 p-4 text-sm text-red-800 backdrop-blur-md"
                             >
                                 <AlertCircle
                                     size={19}
-                                    className="mt-0.5 shrink-0 text-red-400"
+                                    className="mt-0.5 shrink-0 text-rose-700"
                                 />
 
                                 <div>
@@ -98,7 +98,7 @@ export default function LoginView() {
                                         No se pudo iniciar sesión
                                     </p>
 
-                                    <p className="mt-1 leading-relaxed text-red-200/80">
+                                    <p className="mt-1 leading-relaxed text-red-800/80">
                                         {errorMessage}
                                     </p>
                                 </div>
@@ -114,7 +114,7 @@ export default function LoginView() {
                             <div>
                                 <label
                                     htmlFor="login-email"
-                                    className="mb-2 block text-sm font-medium text-slate-200"
+                                    className="mb-2 block text-sm font-medium text-slate-800"
                                 >
                                     Correo electrónico
                                 </label>
@@ -122,7 +122,7 @@ export default function LoginView() {
                                 <div className="relative">
                                     <Mail
                                         size={19}
-                                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"
                                     />
 
                                     <input
@@ -145,7 +145,7 @@ export default function LoginView() {
                                         })}
                                         className={`${inputBase} ${errors.email
                                                 ? 'border-red-500/70'
-                                                : 'border-slate-600/80 hover:border-slate-500'
+                                                : 'border-slate-300/80 hover:border-slate-500'
                                             }`}
                                     />
                                 </div>
@@ -153,7 +153,7 @@ export default function LoginView() {
                                 {errors.email && (
                                     <p
                                         id="login-email-error"
-                                        className="mt-2 text-xs text-red-400"
+                                        className="mt-2 text-xs text-rose-700"
                                     >
                                         {errors.email.message}
                                     </p>
@@ -165,18 +165,18 @@ export default function LoginView() {
                                 <div className="mb-2 flex items-center justify-between gap-3">
                                     <label
                                         htmlFor="login-password"
-                                        className="text-sm font-medium text-slate-200"
+                                        className="text-sm font-medium text-slate-800"
                                     >
                                         Contraseña
                                     </label>
 
-                                    <Link to="/olvide-contrasena" className="cursor-pointer text-xs font-medium text-blue-400 transition-colors hover:text-cyan-300 hover:underline">¿Olvidaste tu contraseña?</Link>
+                                    <Link to="/olvide-contrasena" className="cursor-pointer text-xs font-medium text-rose-600 transition-colors hover:text-rose-800 hover:underline">¿Olvidaste tu contraseña?</Link>
                                 </div>
 
                                 <div className="relative">
                                     <LockKeyhole
                                         size={19}
-                                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"
                                     />
 
                                     <input
@@ -199,7 +199,7 @@ export default function LoginView() {
                                         })}
                                         className={`${inputBase} ${errors.password
                                                 ? 'border-red-500/70'
-                                                : 'border-slate-600/80 hover:border-slate-500'
+                                                : 'border-slate-300/80 hover:border-slate-500'
                                             }`}
                                     />
 
@@ -219,7 +219,7 @@ export default function LoginView() {
                                                 ? 'Ocultar contraseña'
                                                 : 'Mostrar contraseña'
                                         }
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
                                     >
                                         {showPassword ? (
                                             <EyeOff size={19} />
@@ -232,7 +232,7 @@ export default function LoginView() {
                                 {errors.password && (
                                     <p
                                         id="login-password-error"
-                                        className="mt-2 text-xs text-red-400"
+                                        className="mt-2 text-xs text-rose-700"
                                     >
                                         {errors.password.message}
                                     </p>
@@ -244,7 +244,7 @@ export default function LoginView() {
                                 <button
                                     type="submit"
                                     disabled={loginMutation.isPending}
-                                    className="group flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-red-700 to-red-600 px-5 py-3 text-sm font-bold text-white shadow-[0_8px_30px_rgba(185,28,28,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:from-red-600 hover:to-red-500 hover:shadow-[0_12px_35px_rgba(185,28,28,0.28)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                                    className="group flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-red-700 to-red-600 px-5 py-3 text-sm font-bold text-white shadow-[0_8px_30px_rgba(185,28,28,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:from-red-600 hover:to-red-500 hover:shadow-[0_12px_35px_rgba(185,28,28,0.28)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                                 >
                                     {loginMutation.isPending ? (
                                         <>
@@ -267,12 +267,12 @@ export default function LoginView() {
                             </div>
                         </form>
 
-                        <div className="mt-4 rounded-xl border border-blue-500/25 bg-blue-500/10 p-3 text-center">
-                            <p className="text-sm font-semibold text-white">¿Sos alumno y todavía no tenés una cuenta?</p>
+                        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-center">
+                            <p className="text-sm font-semibold text-slate-900">¿Sos alumno y todavía no tenés una cuenta?</p>
                             <Link to="/registro-alumno" className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-bold text-slate-900 transition hover:bg-white">
                                 <GraduationCap size={18}/> Registrarme como alumno
                             </Link>
-                            <p className="mt-1.5 text-xs text-slate-300">Tu institución deberá aprobar el registro.</p>
+                            <p className="mt-1.5 text-xs text-slate-700">Tu institución deberá aprobar el registro.</p>
                         </div>
                         <div className="mt-3"><InstallPwaButton /></div>
                         {/* NOTA DE SEGURIDAD */}
@@ -282,7 +282,7 @@ export default function LoginView() {
                                 className="shrink-0 text-emerald-400"
                             />
 
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-slate-600">
                                 Acceso exclusivo para usuarios autorizados
                             </p>
                         </div>
@@ -290,7 +290,7 @@ export default function LoginView() {
                 </div>
             </main>
 
-            <footer className="relative z-10 w-full px-4 pb-3 text-center text-[11px] text-slate-500">
+            <footer className="relative z-10 w-full px-4 pb-3 text-center text-[11px] text-slate-600">
                 © {new Date().getFullYear()} Instituto Superior de Formación Técnica Nº12 · Acceso seguro
             </footer>
         </div>

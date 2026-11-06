@@ -38,13 +38,13 @@ const STATUS = {
         label: 'Confirmado',
         Icon: CheckCircle2,
         className:
-            'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+            'border-emerald-500/20 bg-emerald-50 text-emerald-700',
     },
     PENDING: {
         label: 'Pendiente',
         Icon: Clock3,
         className:
-            'border-amber-500/20 bg-amber-500/10 text-amber-400',
+            'border-amber-500/20 bg-amber-500/10 text-amber-700',
     },
     REJECTED: {
         label: 'Rechazado',
@@ -212,23 +212,23 @@ function ClassSchedule({ notice }) {
     const classes = getAffectedClasses(notice);
     if (classes.length > 1) return (
         <div className="space-y-1">
-            <p className="text-sm font-semibold text-blue-300">{classes.length} clases afectadas</p>
-            <p className="text-xs text-slate-400">Ver detalle de fechas y horarios</p>
+            <p className="text-sm font-semibold text-[#B31212]">{classes.length} clases afectadas</p>
+            <p className="text-xs text-[#64748B]">Ver detalle de fechas y horarios</p>
         </div>
     );
 
     return (
         <div className="space-y-1">
-            <p className="text-sm font-semibold text-slate-200">
+            <p className="text-sm font-semibold text-[#374151]">
                 Inicio: {notice.startTime || '—'}
             </p>
 
             {isLate ? (
-                <p className="text-xs font-medium text-amber-400">
+                <p className="text-xs font-medium text-amber-700">
                     Llegada: {notice.estimatedArrivalTime || 'No informada'}
                 </p>
             ) : (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[#64748B]">
                     Ausencia
                 </p>
             )}
@@ -239,11 +239,11 @@ function ClassSchedule({ notice }) {
 function DetailItem({ label, children }) {
     return (
         <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-medium uppercase tracking-wide text-[#64748B]">
                 {label}
             </p>
 
-            <div className="mt-1 break-words text-sm font-medium text-slate-200">
+            <div className="mt-1 break-words text-sm font-medium text-[#374151]">
                 {children || '—'}
             </div>
         </div>
@@ -252,9 +252,9 @@ function DetailItem({ label, children }) {
 
 function DetailSection({ title, icon: Icon, children }) {
     return (
-        <section className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 sm:p-5">
-            <h3 className="mb-5 flex items-center gap-2 text-sm font-semibold text-white">
-                <Icon size={18} className="text-blue-400" />
+        <section className="rounded-xl border border-[#D8DDE3] bg-[#F8FAFC] p-4 sm:p-5">
+            <h3 className="mb-5 flex items-center gap-2 text-sm font-semibold text-[#22252B]">
+                <Icon size={18} className="text-[#C61515]" />
                 {title}
             </h3>
 
@@ -288,29 +288,29 @@ function NoticeDetails({ notice, onClose, token }) {
         notice.type === 'LATE_ARRIVAL';
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/80 px-3 pb-3 pt-20 backdrop-blur-sm sm:px-5 sm:pb-5 sm:pt-24">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#F8FAFC] px-3 pb-3 pt-20 backdrop-blur-sm sm:px-5 sm:pb-5 sm:pt-24">
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="notice-details-title"
-                className="flex max-h-[calc(100dvh-6rem)] w-full max-w-[1400px] flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-900 shadow-2xl shadow-black/50"
+                className="flex max-h-[calc(100dvh-6rem)] w-full max-w-[1400px] flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-white shadow-2xl shadow-black/10"
             >
                 {/* ENCABEZADO */}
-                <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-5 py-5 sm:px-6">
+                <div className="flex items-start justify-between gap-4 border-b border-[#D8DDE3] px-5 py-5 sm:px-6">
                     <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-500/20 bg-blue-500/10 text-blue-400">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F0B6B6] bg-[#FFF0F0] text-[#C61515]">
                             <ClipboardList size={22} />
                         </div>
 
                         <div>
                             <h2
                                 id="notice-details-title"
-                                className="text-xl font-bold text-white"
+                                className="text-xl font-bold text-[#22252B]"
                             >
                                 Detalle del aviso
                             </h2>
 
-                            <p className="mt-1 text-sm text-slate-400">
+                            <p className="mt-1 text-sm text-[#64748B]">
                                 Información completa del registro
                             </p>
                         </div>
@@ -320,7 +320,7 @@ function NoticeDetails({ notice, onClose, token }) {
                         type="button"
                         onClick={onClose}
                         aria-label="Cerrar"
-                        className="cursor-pointer rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+                        className="cursor-pointer rounded-lg p-2 text-[#64748B] transition-colors hover:bg-[#E5E7EB] hover:text-[#20242B]"
                     >
                         <X size={20} />
                     </button>
@@ -331,12 +331,12 @@ function NoticeDetails({ notice, onClose, token }) {
                     <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge status={notice.status} />
 
-                        <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-300">
+                        <span className="rounded-full border border-[#F0B6B6] bg-[#FFF0F0] px-3 py-1.5 text-xs font-medium text-[#B31212]">
                             {TYPES[notice.type] || notice.type}
                         </span>
 
                         {notice.isActive === false && (
-                            <span className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-400">
+                            <span className="rounded-full border border-[#D8DDE3] bg-[#F1F2F4] px-3 py-1.5 text-xs text-[#64748B]">
                                 Desactivado
                             </span>
                         )}
@@ -375,16 +375,16 @@ function NoticeDetails({ notice, onClose, token }) {
                         </DetailItem>
                     </DetailSection>
 
-                    <section className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 sm:p-5">
-                        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-white"><CalendarDays size={18} className="text-blue-400" />Período y clases afectadas</h3>
-                        <p className="text-sm text-slate-200">{noticePeriod(notice)}</p>
-                        <p className="mt-1 text-sm font-semibold text-blue-300">{getAffectedClasses(notice).length || 1} clase(s) afectada(s)</p>
+                    <section className="rounded-xl border border-[#D8DDE3] bg-[#F8FAFC] p-4 sm:p-5">
+                        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[#22252B]"><CalendarDays size={18} className="text-[#C61515]" />Período y clases afectadas</h3>
+                        <p className="text-sm text-[#374151]">{noticePeriod(notice)}</p>
+                        <p className="mt-1 text-sm font-semibold text-[#B31212]">{getAffectedClasses(notice).length || 1} clase(s) afectada(s)</p>
                         <div className="mt-4 overflow-x-auto">
                             <table className="w-full text-left text-sm">
-                                <thead className="border-b border-slate-700 text-xs uppercase text-slate-400"><tr><th className="py-2 pr-4">Fecha</th><th className="py-2 pr-4">Horario</th><th className="py-2 pr-4">Materia</th><th className="py-2 pr-4">Curso</th><th className="py-2">Modalidad</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800">
+                                <thead className="border-b border-[#D8DDE3] text-xs uppercase text-[#64748B]"><tr><th className="py-2 pr-4">Fecha</th><th className="py-2 pr-4">Horario</th><th className="py-2 pr-4">Materia</th><th className="py-2 pr-4">Curso</th><th className="py-2">Modalidad</th></tr></thead>
+                                <tbody className="divide-y divide-[#E5E7EB]">
                                     {(getAffectedClasses(notice).length ? getAffectedClasses(notice) : [{ classDate: notice.classDate, startTime: notice.startTime, endTime: notice.endTime }]).map((cls, i) => (
-                                        <tr key={cls.id ?? i} className="text-slate-200">
+                                        <tr key={cls.id ?? i} className="text-[#374151]">
                                             <td className="py-2 pr-4 whitespace-nowrap">{formatClassDate(cls.classDate)}</td>
                                             <td className="py-2 pr-4 whitespace-nowrap">{cls.startTime} a {cls.endTime}</td>
                                             <td className="py-2 pr-4">{cls.teacherSubject?.subject?.nombre || notice.subject?.nombre || '—'}</td>
@@ -395,7 +395,7 @@ function NoticeDetails({ notice, onClose, token }) {
                                 </tbody>
                             </table>
                         </div>
-                        {isLateArrival && <p className="mt-3 text-sm text-amber-400">Llegada estimada: {notice.estimatedArrivalTime || 'No informada'}</p>}
+                        {isLateArrival && <p className="mt-3 text-sm text-amber-700">Llegada estimada: {notice.estimatedArrivalTime || 'No informada'}</p>}
                     </section>
 
                     <DetailSection
@@ -441,29 +441,29 @@ function NoticeDetails({ notice, onClose, token }) {
                         )}
                     </DetailSection>
 
-                    <section className="rounded-xl border border-slate-800 bg-slate-950/40 p-5">
-                        <h3 className="text-sm font-semibold text-white">
+                    <section className="rounded-xl border border-[#D8DDE3] bg-[#F8FAFC] p-5">
+                        <h3 className="text-sm font-semibold text-[#22252B]">
                             Motivo del aviso
                         </h3>
 
-                        <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-300">
+                        <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#475569]">
                             {notice.reason || 'No especificado'}
                         </p>
                     </section>
 
-                    <section className="rounded-xl border border-slate-800 bg-slate-950/40 p-5">
-                        <h3 className="text-sm font-semibold text-white">Historial de revisiones</h3>
-                        {historyError && <p className="mt-3 text-sm text-red-300">{historyError}</p>}
-                        {!history && !historyError && <p className="mt-3 text-sm text-slate-400">Cargando historial…</p>}
+                    <section className="rounded-xl border border-[#D8DDE3] bg-[#F8FAFC] p-5">
+                        <h3 className="text-sm font-semibold text-[#22252B]">Historial de revisiones</h3>
+                        {historyError && <p className="mt-3 text-sm text-red-700">{historyError}</p>}
+                        {!history && !historyError && <p className="mt-3 text-sm text-[#64748B]">Cargando historial…</p>}
                         {history && (history.revisions?.length ? (
                             <ol className="mt-3 space-y-2">
                                 {history.revisions.map(r => (
-                                    <li key={r.id} className="rounded-lg border border-slate-700 p-3 text-sm text-slate-200">
+                                    <li key={r.id} className="rounded-lg border border-[#D8DDE3] p-3 text-sm text-[#374151]">
                                         <strong>Versión {r.version}</strong> · {r.action} · {formatDateTime(r.createdAt)}
                                     </li>
                                 ))}
                             </ol>
-                        ) : <p className="mt-3 text-sm text-slate-400">Sin revisiones registradas.</p>)}
+                        ) : <p className="mt-3 text-sm text-[#64748B]">Sin revisiones registradas.</p>)}
                     </section>
 
                     {notice.status === 'REJECTED' && (
@@ -472,7 +472,7 @@ function NoticeDetails({ notice, onClose, token }) {
                                 Motivo del rechazo
                             </h3>
 
-                            <p className="mt-3 whitespace-pre-wrap break-words text-sm text-red-200">
+                            <p className="mt-3 whitespace-pre-wrap break-words text-sm text-red-800">
                                 {notice.rejectionReason ||
                                     'No especificado'}
                             </p>
@@ -481,11 +481,11 @@ function NoticeDetails({ notice, onClose, token }) {
                 </div>
 
                 {/* PIE */}
-                <div className="border-t border-slate-800 bg-slate-950/40 px-6 py-4">
+                <div className="border-t border-[#D8DDE3] bg-[#F8FAFC] px-6 py-4">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="w-full cursor-pointer rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
+                        className="w-full cursor-pointer rounded-xl bg-[#C61515] !text-white px-4 py-3 text-sm font-semibold text-[#22252B] transition-colors hover:bg-[#B31212] !text-white"
                     >
                         Cerrar
                     </button>
@@ -519,7 +519,7 @@ function NoticeActions({
             <button
                 type="button"
                 onClick={() => onDetails(notice)}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/20"
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#F0B6B6] bg-[#FFF0F0] px-3 py-2 text-xs font-medium text-[#C61515] transition-colors hover:bg-blue-500/20"
             >
                 <Eye size={15} />
                 Ver detalles
@@ -529,7 +529,7 @@ function NoticeActions({
                 <button
                     type="button"
                     onClick={() => onEdit(notice)}
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition-colors hover:bg-slate-700"
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#D8DDE3] bg-[#F1F2F4] px-3 py-2 text-xs font-medium text-[#374151] transition-colors hover:bg-[#DCE1E6]"
                 >
                     <Pencil size={14} />
                     Editar
@@ -542,7 +542,7 @@ function NoticeActions({
                         type="button"
                         onClick={() => onConfirm(notice)}
                         disabled={isBusy}
-                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-600 !text-white px-3 py-2 text-xs font-semibold text-[#22252B] transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <CheckCircle2 size={15} />
                         Confirmar
@@ -552,7 +552,7 @@ function NoticeActions({
                         type="button"
                         onClick={() => onReject(notice)}
                         disabled={isBusy}
-                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-red-600 !text-white px-3 py-2 text-xs font-semibold text-[#22252B] transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <XCircle size={15} />
                         Rechazar
@@ -562,7 +562,7 @@ function NoticeActions({
 
             {canDeleteHistory && (
                 <button type="button" onClick={() => onDeleteHistory(notice)}
-                    className="cursor-pointer rounded-lg border border-red-500/40 px-3 py-2 text-xs text-red-300 hover:bg-red-500/10">
+                    className="cursor-pointer rounded-lg border border-red-500/40 px-3 py-2 text-xs text-red-700 hover:bg-red-500/10">
                     Eliminar del historial
                 </button>
             )}
@@ -853,24 +853,24 @@ export default function EarlyNoticesView({
     };
 
     return (
-        <div className="mx-auto w-full min-w-0 max-w-7xl space-y-7 px-3 py-5 text-slate-100 sm:px-6 sm:py-8">
+        <div className="mx-auto w-full min-w-0 max-w-7xl space-y-7 px-3 py-5 text-[#22252B] sm:px-6 sm:py-8">
             {/* ENCABEZADO */}
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10 text-blue-400">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#F0B6B6] bg-[#FFF0F0] text-[#C61515]">
                         <CalendarDays size={27} />
                     </div>
 
                     <div>
-                        <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-400">
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#C61515]">
                             Gestión académica
                         </p>
 
-                        <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                        <h1 className="text-2xl font-bold tracking-tight text-[#22252B] sm:text-3xl">
                             Avisos Tempranos
                         </h1>
 
-                        <p className="mt-2 text-sm text-slate-400">
+                        <p className="mt-2 text-sm text-[#64748B]">
                             Consultá las ausencias y llegadas tarde de docentes.
                         </p>
                     </div>
@@ -880,7 +880,7 @@ export default function EarlyNoticesView({
                     <button
                         type="button"
                         onClick={openCreate}
-                        className="inline-flex cursor-pointer items-center justify-center gap-2 self-start rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-950/30 transition-colors hover:bg-blue-500 sm:self-auto"
+                        className="inline-flex cursor-pointer items-center justify-center gap-2 self-start rounded-xl bg-[#C61515] !text-white px-5 py-3 text-sm font-semibold text-[#22252B] shadow-lg shadow-red-900/15 transition-colors hover:bg-[#B31212] !text-white sm:self-auto"
                     >
                         <Plus size={18} />
                         Nuevo aviso
@@ -891,35 +891,35 @@ export default function EarlyNoticesView({
             <EarlyNoticeNotifications enabled={Boolean(currentUser)} />
 
             {/* INFORMACIÓN */}
-            <div className="flex items-start gap-3 rounded-xl border border-blue-500/20 bg-blue-500/10 p-4">
+            <div className="flex items-start gap-3 rounded-xl border border-[#F0B6B6] bg-[#FFF0F0] p-4">
                 <AlertCircle
                     size={20}
-                    className="mt-0.5 shrink-0 text-blue-400"
+                    className="mt-0.5 shrink-0 text-[#C61515]"
                 />
 
-                <p className="text-sm leading-relaxed text-blue-100/90">
+                <p className="text-sm leading-relaxed text-[#8F1A1A]">
                     Los avisos confirmados son los válidos para
                     informar a los alumnos. Los avisos pendientes
                     requieren confirmación del docente responsable.
                 </p>
             </div>
 
-            <div className="flex gap-2 rounded-xl border border-slate-800 bg-slate-900 p-2" role="tablist" aria-label="Vigencia de avisos">
+            <div className="flex gap-2 rounded-xl border border-[#D8DDE3] bg-white p-2" role="tablist" aria-label="Vigencia de avisos">
                 {[['active', 'Vigentes'], ['history', 'Historial']].map(([value, label]) => (
                     <button key={value} type="button" role="tab" aria-selected={mode === value}
                         onClick={() => { setMode(value); setPage(1); setSelectedNotice(null); }}
-                        className={`cursor-pointer rounded-lg px-5 py-2 text-sm font-semibold ${mode === value ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`}>
+                        className={`cursor-pointer rounded-lg px-5 py-2 text-sm font-semibold ${mode === value ? 'bg-[#C61515] !text-white text-[#22252B]' : 'text-[#475569] hover:bg-[#E5E7EB]'}`}>
                         {label}
                     </button>
                 ))}
             </div>
 
             {/* FILTROS */}
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/95 p-5 md:flex-row">
+            <div className="flex flex-col gap-3 rounded-2xl border border-[#D8DDE3] bg-white p-5 md:flex-row">
                 <div className="relative min-w-0 flex-1">
                     <Search
                         size={18}
-                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B]"
                     />
 
                     <input
@@ -929,7 +929,7 @@ export default function EarlyNoticesView({
                             setSearch(event.target.value)
                         }
                         placeholder="Buscar por docente, materia, curso, motivo o creador..."
-                        className="w-full rounded-xl border border-slate-700/80 bg-slate-950/60 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                        className="w-full rounded-xl border border-slate-700/80 bg-[#F8FAFC] py-3 pl-11 pr-4 text-sm text-[#22252B] placeholder:text-[#8491A3] outline-none transition-all focus:border-[#C61515] focus:ring-4 focus:ring-blue-500/10"
                     />
                 </div>
 
@@ -940,7 +940,7 @@ export default function EarlyNoticesView({
                             setStatus(event.target.value);
                             setPage(1);
                         }}
-                        className="cursor-pointer rounded-xl border border-slate-700/80 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 md:w-52"
+                        className="cursor-pointer rounded-xl border border-slate-700/80 bg-[#F8FAFC] px-4 py-3 text-sm text-[#374151] outline-none focus:border-[#C61515] focus:ring-4 focus:ring-blue-500/10 md:w-52"
                     >
                         <option value="">Todos los estados</option>
                         <option value="CONFIRMED">Confirmados</option>
@@ -954,7 +954,7 @@ export default function EarlyNoticesView({
             {actionSuccess && (
                 <div
                     role="status"
-                    className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300"
+                    className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 p-4 text-sm text-emerald-700"
                 >
                     <CheckCircle2 size={19} />
                     {actionSuccess}
@@ -964,7 +964,7 @@ export default function EarlyNoticesView({
             {(error || actionError) && (
                 <div
                     role="alert"
-                    className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300"
+                    className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-700"
                 >
                     <AlertCircle size={19} className="shrink-0" />
                     {actionError ||
@@ -976,19 +976,19 @@ export default function EarlyNoticesView({
             )}
 
             {/* LISTADO */}
-            <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/95 shadow-xl shadow-black/10">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 bg-slate-950/30 px-5 py-5">
+            <div className="min-w-0 overflow-hidden rounded-2xl border border-[#D8DDE3] bg-white shadow-xl shadow-black/10">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D8DDE3] bg-[#F8FAFC] px-5 py-5">
                     <div>
-                        <h2 className="text-base font-semibold text-white">
+                        <h2 className="text-base font-semibold text-[#22252B]">
                             Listado de avisos
                         </h2>
 
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-[#64748B]">
                             Ausencias y llegadas tarde registradas
                         </p>
                     </div>
 
-                    <span className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300">
+                    <span className="rounded-full border border-[#D8DDE3] bg-[#F1F2F4] px-3 py-1.5 text-xs font-medium text-[#475569]">
                         {filtered.length} en esta página
                     </span>
                 </div>
@@ -999,13 +999,13 @@ export default function EarlyNoticesView({
                         <div className="flex justify-center py-12">
                             <Loader2
                                 size={28}
-                                className="animate-spin text-blue-400"
+                                className="animate-spin text-[#C61515]"
                             />
                         </div>
                     )}
 
                     {!isLoading && filtered.length === 0 && (
-                        <p className="py-12 text-center text-sm text-slate-500">
+                        <p className="py-12 text-center text-sm text-[#64748B]">
                             No se encontraron avisos.
                         </p>
                     )}
@@ -1014,15 +1014,15 @@ export default function EarlyNoticesView({
                         filtered.map((notice) => (
                             <article
                                 key={notice.id}
-                                className="min-w-0 rounded-xl border border-slate-700/70 bg-slate-800/40 p-4"
+                                className="min-w-0 rounded-xl border border-slate-700/70 bg-[#F3F4F6] p-4"
                             >
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div className="min-w-0 flex-1">
-                                        <h3 className="break-words font-semibold text-white">
+                                        <h3 className="break-words font-semibold text-[#22252B]">
                                             {fullName(getTeacher(notice))}
                                         </h3>
 
-                                        <p className="mt-1 text-sm text-slate-400">
+                                        <p className="mt-1 text-sm text-[#64748B]">
                                             {notice.subject?.nombre || '—'}
                                             {' · '}
                                             {notice.course?.nombre || '—'}
@@ -1036,31 +1036,31 @@ export default function EarlyNoticesView({
                                 </div>
 
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                    <span className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-2.5 py-1 text-xs text-blue-300">
+                                    <span className="rounded-lg border border-[#F0B6B6] bg-[#FFF0F0] px-2.5 py-1 text-xs text-[#B31212]">
                                         {TYPES[notice.type] ||
                                             notice.type}
                                     </span>
 
                                     {notice.isActive === false && (
-                                        <span className="rounded-lg bg-slate-700 px-2.5 py-1 text-xs text-slate-300">
+                                        <span className="rounded-lg bg-[#E8EBEF] px-2.5 py-1 text-xs text-[#475569]">
                                             Desactivado
                                         </span>
                                     )}
                                 </div>
 
-                                <div className="mt-4 grid gap-4 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+                                <div className="mt-4 grid gap-4 rounded-xl border border-[#D8DDE3] bg-[#F8FAFC] p-4">
                                     <div className="flex items-start gap-3">
                                         <CalendarDays
                                             size={18}
-                                            className="text-blue-400"
+                                            className="text-[#C61515]"
                                         />
 
                                         <div>
-                                            <p className="text-xs text-slate-500">
+                                            <p className="text-xs text-[#64748B]">
                                                 Fecha de clase
                                             </p>
 
-                                            <p className="mt-1 text-sm font-medium text-slate-200">
+                                            <p className="mt-1 text-sm font-medium text-[#374151]">
                                                 {noticePeriod(notice)}
                                             </p>
                                         </div>
@@ -1069,11 +1069,11 @@ export default function EarlyNoticesView({
                                     <div className="flex items-start gap-3">
                                         <Clock3
                                             size={18}
-                                            className="text-blue-400"
+                                            className="text-[#C61515]"
                                         />
 
                                         <div>
-                                            <p className="mb-1 text-xs text-slate-500">
+                                            <p className="mb-1 text-xs text-[#64748B]">
                                                 Horario
                                             </p>
 
@@ -1105,8 +1105,8 @@ export default function EarlyNoticesView({
                             <col className="w-[29%]" />
                         </colgroup>
 
-                        <thead className="bg-slate-950/50">
-                            <tr className="border-b border-slate-800">
+                        <thead className="bg-[#F8FAFC]">
+                            <tr className="border-b border-[#D8DDE3]">
                                 {[
                                     'Estado',
                                     'Docente / Materia',
@@ -1117,7 +1117,7 @@ export default function EarlyNoticesView({
                                     <th
                                         key={column}
                                         scope="col"
-                                        className="px-3 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500"
+                                        className="px-3 py-4 text-xs font-semibold uppercase tracking-wider text-[#64748B]"
                                     >
                                         {column}
                                     </th>
@@ -1134,9 +1134,9 @@ export default function EarlyNoticesView({
                                     >
                                         <Loader2
                                             size={28}
-                                            className="mx-auto animate-spin text-blue-400"
+                                            className="mx-auto animate-spin text-[#C61515]"
                                         />
-                                        <p className="mt-3 text-sm text-slate-400">
+                                        <p className="mt-3 text-sm text-[#64748B]">
                                             Cargando avisos...
                                         </p>
                                     </td>
@@ -1148,7 +1148,7 @@ export default function EarlyNoticesView({
                                     <tr>
                                         <td
                                             colSpan={5}
-                                            className="px-6 py-14 text-center text-slate-500"
+                                            className="px-6 py-14 text-center text-[#64748B]"
                                         >
                                             No se encontraron avisos.
                                         </td>
@@ -1168,36 +1168,36 @@ export default function EarlyNoticesView({
                                             />
 
                                             {notice.isActive === false && (
-                                                <p className="mt-2 text-xs text-slate-500">
+                                                <p className="mt-2 text-xs text-[#64748B]">
                                                     Desactivado
                                                 </p>
                                             )}
                                         </td>
 
                                         <td className="min-w-0 px-3 py-5">
-                                            <p className="break-words font-semibold text-slate-100">
+                                            <p className="break-words font-semibold text-[#22252B]">
                                                 {fullName(
                                                     getTeacher(notice)
                                                 )}
                                             </p>
 
-                                            <p className="mt-1 break-words text-xs text-slate-400">
+                                            <p className="mt-1 break-words text-xs text-[#64748B]">
                                                 {notice.subject?.nombre ||
                                                     '—'}
                                             </p>
 
-                                            <p className="mt-1 break-words text-xs text-slate-500">
+                                            <p className="mt-1 break-words text-xs text-[#64748B]">
                                                 {notice.course?.nombre ||
                                                     '—'}
                                             </p>
                                         </td>
 
                                         <td className="px-3 py-5">
-                                            <p className="font-medium text-slate-200">
+                                            <p className="font-medium text-[#374151]">
                                                 {noticePeriod(notice)}
                                             </p>
 
-                                            <p className="mt-1 text-xs text-blue-400">
+                                            <p className="mt-1 text-xs text-[#C61515]">
                                                 {TYPES[notice.type] ||
                                                     notice.type}
                                             </p>
@@ -1233,17 +1233,17 @@ export default function EarlyNoticesView({
                                 Math.max(1, current - 1)
                             )
                         }
-                        className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#D8DDE3] bg-[#F1F2F4] px-4 py-2.5 text-sm font-medium text-[#374151] transition-colors hover:bg-[#DCE1E6] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         <ChevronLeft size={18} />
                         Anterior
                     </button>
 
-                    <span className="text-sm font-medium text-slate-400">
+                    <span className="text-sm font-medium text-[#64748B]">
                         Página{' '}
-                        <span className="text-white">{page}</span>
+                        <span className="text-[#22252B]">{page}</span>
                         {' '}de{' '}
-                        <span className="text-white">
+                        <span className="text-[#22252B]">
                             {pagination.totalPages}
                         </span>
                     </span>
@@ -1254,7 +1254,7 @@ export default function EarlyNoticesView({
                         onClick={() =>
                             setPage((current) => current + 1)
                         }
-                        className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#D8DDE3] bg-[#F1F2F4] px-4 py-2.5 text-sm font-medium text-[#374151] transition-colors hover:bg-[#DCE1E6] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         Siguiente
                         <ChevronRight size={18} />
@@ -1263,18 +1263,18 @@ export default function EarlyNoticesView({
             )}
 
             {reviewDecision && createPortal(
-                <div className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm" onMouseDown={event => { if (event.target === event.currentTarget && !isBusy) setReviewDecision(null); }}>
-                    <form role="dialog" aria-modal="true" aria-labelledby="review-notice-heading" onSubmit={submitReviewDecision} className="w-full max-w-lg space-y-5 rounded-2xl border border-slate-700 bg-slate-900 p-6 text-white shadow-2xl">
+                <div className="fixed inset-0 z-[210] flex items-center justify-center bg-[#F8FAFC] p-4 backdrop-blur-sm" onMouseDown={event => { if (event.target === event.currentTarget && !isBusy) setReviewDecision(null); }}>
+                    <form role="dialog" aria-modal="true" aria-labelledby="review-notice-heading" onSubmit={submitReviewDecision} className="w-full max-w-lg space-y-5 rounded-2xl border border-[#D8DDE3] bg-white p-6 text-[#22252B] shadow-2xl">
                         <div className="flex items-start gap-3">
-                            {reviewDecision.reject ? <XCircle className="mt-1 shrink-0 text-rose-400" /> : <CheckCircle2 className="mt-1 shrink-0 text-emerald-400" />}
-                            <div><h2 id="review-notice-heading" className="text-xl font-bold">{reviewDecision.reject ? 'Rechazar aviso temprano' : 'Confirmar aviso temprano'}</h2><p className="mt-1 text-sm text-slate-400">Aviso #{reviewDecision.notice.id}</p></div>
+                            {reviewDecision.reject ? <XCircle className="mt-1 shrink-0 text-rose-400" /> : <CheckCircle2 className="mt-1 shrink-0 text-emerald-700" />}
+                            <div><h2 id="review-notice-heading" className="text-xl font-bold">{reviewDecision.reject ? 'Rechazar aviso temprano' : 'Confirmar aviso temprano'}</h2><p className="mt-1 text-sm text-[#64748B]">Aviso #{reviewDecision.notice.id}</p></div>
                         </div>
-                        <p className="text-sm text-slate-300">{reviewDecision.reject ? 'El aviso será rechazado. Indicá el motivo para dejar constancia de la decisión.' : '¿Confirmás este aviso? Quedará validado para los alumnos afectados y se procesarán las notificaciones correspondientes.'}</p>
-                        {reviewDecision.reject && <label className="block text-sm font-semibold">Motivo del rechazo<textarea autoFocus required maxLength={2000} rows={3} value={reviewReason} onChange={event => setReviewReason(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-600 bg-slate-950 p-3 text-white outline-none focus:border-blue-500" /></label>}
+                        <p className="text-sm text-[#475569]">{reviewDecision.reject ? 'El aviso será rechazado. Indicá el motivo para dejar constancia de la decisión.' : '¿Confirmás este aviso? Quedará validado para los alumnos afectados y se procesarán las notificaciones correspondientes.'}</p>
+                        {reviewDecision.reject && <label className="block text-sm font-semibold">Motivo del rechazo<textarea autoFocus required maxLength={2000} rows={3} value={reviewReason} onChange={event => setReviewReason(event.target.value)} className="mt-2 w-full rounded-xl border border-[#C8CFD8] bg-[#F8FAFC] p-3 text-[#22252B] outline-none focus:border-[#C61515]" /></label>}
                         {actionError && <p role="alert" className="text-sm text-rose-300">{actionError}</p>}
                         <div className="flex flex-wrap justify-end gap-3">
-                            <button type="button" disabled={isBusy} onClick={() => { setReviewDecision(null); clearMessages(); }} className="rounded-xl border border-slate-600 px-5 py-2.5 font-semibold hover:bg-slate-800">Volver</button>
-                            <button type="submit" disabled={isBusy || (reviewDecision.reject && !reviewReason.trim())} className={`rounded-xl px-5 py-2.5 font-semibold disabled:opacity-50 ${reviewDecision.reject ? 'bg-rose-700 hover:bg-rose-600' : 'bg-emerald-600 hover:bg-emerald-500'}`}>{isBusy ? 'Procesando…' : reviewDecision.reject ? 'Confirmar rechazo' : 'Confirmar aviso'}</button>
+                            <button type="button" disabled={isBusy} onClick={() => { setReviewDecision(null); clearMessages(); }} className="rounded-xl border border-[#C8CFD8] px-5 py-2.5 font-semibold hover:bg-[#E5E7EB]">Volver</button>
+                            <button type="submit" disabled={isBusy || (reviewDecision.reject && !reviewReason.trim())} className={`rounded-xl px-5 py-2.5 font-semibold disabled:opacity-50 ${reviewDecision.reject ? 'bg-rose-700 hover:bg-rose-600' : 'bg-emerald-600 !text-white hover:bg-emerald-500'}`}>{isBusy ? 'Procesando…' : reviewDecision.reject ? 'Confirmar rechazo' : 'Confirmar aviso'}</button>
                         </div>
                     </form>
                 </div>, document.body
