@@ -19,7 +19,6 @@ import {
     UsersRound,
     Mail,
     ChevronLeft,
-    LayoutDashboard,
     CalendarDays,
     Megaphone,
     ShieldCheck,
@@ -37,11 +36,11 @@ const SECTIONS = {
         eyebrow: 'Comunicación institucional',
         description:
             'Consultá ausencias, llegadas tarde y avisos de docentes.',
-        color: 'text-amber-700',
-        iconBackground: 'bg-amber-500/10',
-        iconBorder: 'border-amber-500/20',
-        hoverBorder: 'hover:border-amber-500/40',
-        gradient: 'from-amber-500/10 via-transparent to-transparent',
+        color: 'text-[#C61515]',
+        iconBackground: 'bg-red-50',
+        iconBorder: 'border-red-100',
+        hoverBorder: 'hover:border-[#C61515]/30',
+        gradient: 'from-red-500/5 via-transparent to-transparent',
         Icon: ClipboardList,
         directPath: '/dashboard/early-notices',
         items: [
@@ -91,10 +90,10 @@ const SECTIONS = {
         description:
             'Administrá usuarios, roles e inscripciones dentro de la institución.',
         color: 'text-[#C61515]',
-        iconBackground: 'bg-blue-500/10',
-        iconBorder: 'border-blue-500/20',
-        hoverBorder: 'hover:border-blue-500/40',
-        gradient: 'from-blue-500/10 via-transparent to-transparent',
+        iconBackground: 'bg-red-50',
+        iconBorder: 'border-red-100',
+        hoverBorder: 'hover:border-[#C61515]/30',
+        gradient: 'from-red-500/5 via-transparent to-transparent',
         Icon: Users,
         items: [
             {
@@ -169,7 +168,7 @@ const SECTIONS = {
         color: 'text-[#B31212]',
         iconBackground: 'bg-rose-50',
         iconBorder: 'border-rose-100',
-        hoverBorder: 'hover:border-cyan-500/40',
+        hoverBorder: 'hover:border-[#C61515]/30',
         gradient: 'from-rose-500/5 via-transparent to-transparent',
         Icon: GraduationCap,
         items: [
@@ -255,7 +254,7 @@ function ModuleCard({
                     <Icon size={27} strokeWidth={1.8} />
                 </div>
 
-                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-600 transition-all group-hover:border-slate-300 group-hover:bg-slate-200 group-hover:text-slate-950">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-600 transition-all group-hover:border-red-200 group-hover:bg-red-50 group-hover:text-slate-950">
                     <ArrowUpRight size={18} />
                 </div>
             </div>
@@ -300,7 +299,7 @@ function ModuleCard({
         </>
     );
 
-    const className = `group relative flex min-h-[245px] w-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#D8DDE3] bg-[#EEF0F2] p-6 text-left shadow-sm shadow-slate-900/5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:bg-[#E7EAEE] hover:shadow-lg hover:shadow-slate-900/10 ${section.hoverBorder}`;
+    const className = `group relative flex min-h-[230px] w-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#DEE2E8] bg-white p-6 text-left shadow-[0_3px_16px_rgba(15,23,42,0.045)] transition-all duration-200 hover:-translate-y-1 hover:border-[#C61515]/30 hover:shadow-[0_15px_32px_rgba(15,23,42,0.10)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C61515] ${section.hoverBorder}`;
 
     // Avisos Tempranos navega directamente a su vista.
     if (section.directPath) {
@@ -344,7 +343,7 @@ function AccessCard({
         <Link
             to={item.path}
             state={{ section: /students|teachers|preceptors|directors|invitations/.test(item.path) ? 'users' : 'academic' }}
-            className="group relative flex min-h-[215px] cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#D8DDE3] bg-[#EEF0F2] p-5 shadow-md shadow-slate-900/5 transition-all duration-200 hover:-translate-y-1 hover:border-blue-500/40 hover:bg-[#E7EAEE] hover:shadow-lg hover:shadow-slate-900/10 sm:p-6"
+            className="group relative flex min-h-[215px] cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#DEE2E8] bg-white p-5 shadow-sm shadow-slate-900/5 transition-all duration-200 hover:-translate-y-1 hover:border-[#C61515]/35 hover:bg-[#FFFCFC] hover:shadow-lg hover:shadow-slate-900/10 sm:p-6"
         >
             <div className="flex items-start justify-between gap-3">
                 <div
@@ -395,7 +394,7 @@ function AccessCard({
                     </span>
                 )}
 
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 transition-colors group-hover:border-blue-500/30 group-hover:bg-blue-500/10 group-hover:text-rose-600">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 transition-colors group-hover:border-red-200 group-hover:bg-red-50 group-hover:text-rose-600">
                     <ArrowRight size={17} />
                 </span>
             </div>
@@ -495,74 +494,56 @@ export default function DashboardView() {
     // Los estudiantes ven las dos tarjetas de comunicaciones en el panel principal.
     // Ya no se los redirige automáticamente a Avisos Tempranos.
 
-    // PANTALLA PRINCIPAL
+    // PANTALLA PRINCIPAL: el encabezado y el sidebar siguen en DashboardLayout.
+    // Los accesos rápidos reutilizan rutas existentes, sin inventar endpoints.
     if (!canShowCurrentSection) {
         return (
-            <div className="mx-auto w-full max-w-7xl space-y-7 pb-8">
-
-                <div className="flex justify-end">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600">
-                        <LayoutDashboard size={14}/>
-                        {visibleSections.length + (isTeacher ? 1 : 0)} módulos disponibles
-                    </span>
-                </div>
-
-                {/* TARJETAS PRINCIPALES */}
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-
-                    {isTeacher && (
-                        <Link
-                            to="/dashboard/my-subjects"
-                            className="group relative flex min-h-[245px] flex-col overflow-hidden rounded-2xl border border-emerald-500/25 bg-[#EEF0F2] p-6 shadow-sm shadow-slate-900/5 transition-all duration-300 hover:-translate-y-1 hover:border-emerald-400/50 hover:bg-[#E7EAEE] hover:shadow-lg"
-                        >
-                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent" />
-
-                            <div className="relative flex items-start justify-between">
-                                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-700">
-                                    <BookOpen size={27} />
+            <div className="mx-auto w-full max-w-[1380px] space-y-6 pb-10">
+                <section aria-labelledby="i12-modulos-titulo">
+                    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                        <div>
+                            <h2 id="i12-modulos-titulo" className="text-lg font-bold tracking-tight text-[#20242B]">Módulos principales</h2>
+                            <p className="mt-1 text-xs text-slate-500">Elegí el área en la que querés trabajar.</p>
+                        </div>
+                    </div>
+                    {/* Dos columnas equilibradas en escritorio, una en móvil. */}
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                        {isTeacher && (
+                            <Link
+                                to="/dashboard/my-subjects"
+                                className="group relative flex min-h-[230px] flex-col overflow-hidden rounded-2xl border border-[#DEE2E8] bg-white p-6 text-left shadow-[0_3px_16px_rgba(15,23,42,0.045)] transition-all duration-200 hover:-translate-y-1 hover:border-[#C61515]/30 hover:shadow-[0_15px_32px_rgba(15,23,42,0.10)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C61515]"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-red-100 bg-red-50 text-[#C61515]">
+                                        <BookOpen size={27} strokeWidth={1.8} />
+                                    </div>
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 transition-colors group-hover:border-red-200 group-hover:bg-red-50 group-hover:text-[#C61515]">
+                                        <ArrowUpRight size={18} />
+                                    </div>
                                 </div>
-
-                                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-600 transition-colors group-hover:text-slate-950">
-                                    <ArrowUpRight size={18} />
+                                <div className="mt-auto pt-7">
+                                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#C61515]">Espacio docente</p>
+                                    <h3 className="text-xl font-bold tracking-tight text-slate-900">Mis cursos</h3>
+                                    <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-600">Consultá tus cursos, materias y horarios asignados.</p>
+                                    <div className="mt-6 flex items-center justify-between border-t border-slate-200 pt-4">
+                                        <span className="text-xs font-semibold text-slate-700">Abrir módulo</span>
+                                        <ArrowRight size={17} className="text-[#C61515] transition-transform group-hover:translate-x-1" />
+                                    </div>
                                 </div>
-                            </div>
+                            </Link>
+                        )}
+                        {visibleSections.map(([key, section]) => (
+                            <ModuleCard
+                                key={key}
+                                section={section}
+                                count={getVisibleItems(section).length}
+                                onClick={() => setActiveSection(key)}
+                            />
+                        ))}
+                    </div>
+                </section>
 
-                            <div className="relative mt-auto pt-7">
-                                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                                    Espacio docente
-                                </p>
 
-                                <h3 className="text-xl font-bold text-slate-900">
-                                    Mis cursos
-                                </h3>
-
-                                <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                                    Elegí primero el curso y luego la materia para consultar sus cursos, materias y horarios.
-                                </p>
-
-                                <div className="mt-6 flex items-center justify-between border-t border-slate-200/60 pt-4">
-                                    <span className="text-xs font-semibold text-slate-700">
-                                        Ingresar a mis cursos
-                                    </span>
-
-                                    <ArrowRight
-                                        size={17}
-                                        className="text-emerald-700 transition-transform group-hover:translate-x-1"
-                                    />
-                                </div>
-                            </div>
-                        </Link>
-                    )}
-
-                    {visibleSections.map(([key, section]) => (
-                        <ModuleCard
-                            key={key}
-                            section={section}
-                            count={getVisibleItems(section).length}
-                            onClick={() => setActiveSection(key)}
-                        />
-                    ))}
-                </div>
             </div>
         );
     }

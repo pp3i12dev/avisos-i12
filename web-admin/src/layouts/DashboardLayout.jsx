@@ -297,7 +297,7 @@ export default function DashboardLayout() {
                 <div className="pointer-events-none fixed inset-0 z-0 bg-transparent" />
 
                 {/* HEADER SUPERIOR */}
-                <header className="sticky top-0 z-40 h-[76px] border-b border-[#AC1111] bg-[#C61515] shadow-lg shadow-[#8F0E0E]/15 backdrop-blur-xl">
+                <header className="sticky top-0 z-40 h-[88px] lg:h-[116px] border-b border-[#AC1111] bg-[#C61515] shadow-lg shadow-[#8F0E0E]/15 backdrop-blur-xl">
                     <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
 
                         {/* IZQUIERDA */}
@@ -333,9 +333,15 @@ export default function DashboardLayout() {
                                 <p className="max-w-[200px] truncate text-[9px] font-semibold uppercase tracking-[0.09em] text-white/85 sm:max-w-[400px] sm:text-[10px] sm:tracking-[0.14em]">
                                     {headerEyebrow}
                                 </p>
-                                <h1 className="mt-0.5 max-w-[165px] truncate text-xs font-bold text-white sm:max-w-[420px] sm:text-base" title={headerTitle}>
+                                <h1 className="mt-1 max-w-[165px] truncate text-sm font-bold text-white sm:max-w-[420px] sm:text-lg" title={headerTitle}>
                                     {headerTitle}
                                 </h1>
+                                {isRoot && (
+                                    <p className="mt-1.5 hidden max-w-[700px] text-[11px] leading-relaxed text-white/90 xl:block">
+                                        <span className="font-semibold text-white">Instituto Superior de Formación Técnica Nº12.</span>{' '}
+                                        Accedé a los avisos, las comunicaciones y las herramientas disponibles para tu perfil.
+                                    </p>
+                                )}
                             </div>
                         </div>
 
@@ -456,11 +462,11 @@ export default function DashboardLayout() {
                 </header>
 
                 {/* CUERPO PRINCIPAL */}
-                <div className="relative z-10 flex min-h-[calc(100vh-76px)]">
+                <div className="relative z-10 flex min-h-[calc(100vh-88px)] lg:min-h-[calc(100vh-116px)]">
 
                     {/* SIDEBAR ESCRITORIO */}
                     <aside
-                        className={`sticky top-[76px] hidden h-[calc(100vh-76px)] shrink-0 flex-col border-r border-[#4A5059] bg-[#5A606A] transition-[width] duration-300 lg:flex ${sidebarWidth}`}
+                        className={`sticky top-[116px] hidden h-[calc(100vh-116px)] shrink-0 flex-col border-r border-[#4A5059] bg-[#5A606A] transition-[width] duration-300 lg:flex ${sidebarWidth}`}
                     >
                         <div className="flex min-h-0 flex-1 flex-col p-3">
 
