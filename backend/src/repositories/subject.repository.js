@@ -33,7 +33,6 @@ const subjectInclude = {
                     },
                 },
             },
-            activities: true,
         },
         orderBy: [
             { isActive: 'desc' },
@@ -328,22 +327,6 @@ export const updateSubject = (
                             where: { teacherSubjectId: previousAssignmentId },
                             data: { teacherSubjectId: nextAssignmentId },
                         });
-                        await tx.activity.updateMany({
-                            where: { teacherSubjectId: previousAssignmentId },
-                            data: { teacherSubjectId: nextAssignmentId },
-                        });
-                        await tx.unit.updateMany({
-                            where: { teacherSubjectId: previousAssignmentId },
-                            data: { teacherSubjectId: nextAssignmentId },
-                        });
-                        await tx.studyMaterial.updateMany({
-                            where: { teacherSubjectId: previousAssignmentId },
-                            data: { teacherSubjectId: nextAssignmentId },
-                        });
-                        await tx.teacherSubjectContent.updateMany({
-                            where: { teacherSubjectId: previousAssignmentId },
-                            data: { teacherSubjectId: nextAssignmentId },
-                        });
 
                     } else {
                         // Ruta ideal: conservar exactamente el mismo registro activo.
@@ -485,40 +468,21 @@ export const updateSubject = (
 // Todas las asignaciones vigentes quedan desvinculadas de la docencia operativa.
 export const archiveSubjectWithAssignments = (id, institutionId) => getPrisma().$transaction(async (tx) => {
     const subject = await tx.subject.findFirst({
-        where: { id, deletedAt: null, ...(institutionId != null ? { institutionId } : {}) },
-        select: { id: true },
+        where: { id, deletedAt: null, ...(institutionId != null ? { institutionId } : {}) }, select: { id: true },
     });
     if (!subject) throw Object.assign(new Error('Materia inexistente'), { status: 404 });
-    const assignments = await tx.teacherSubject.findMany({
-        where: { subjectId: id }, select: { id: true },
-    });
-    const assignmentIds = assignments.map(a => a.id);
-    // Sin contenido ni historial, borramos físicamente materia y asignaciones.
-    // Si existe evidencia académica, la archivamos para que siga siendo consultable.
-    const [notices, affectedClasses, activities, units, materials, contents] = await Promise.all([
+    const assignments = await tx.teacherSubject.findMany({ where: { subjectId: id }, select: { id: true } });
+    const ids = assignments.map(row => row.id);
+    const [notices, classes] = await Promise.all([
         tx.earlyNotice.count({ where: { subjectId: id } }),
-        tx.earlyNoticeClass.count({ where: { teacherSubjectId: { in: assignmentIds } } }),
-        tx.activity.count({ where: { teacherSubjectId: { in: assignmentIds } } }),
-        tx.unit.count({ where: { teacherSubjectId: { in: assignmentIds } } }),
-        tx.studyMaterial.count({ where: { teacherSubjectId: { in: assignmentIds } } }),
-        tx.teacherSubjectContent.count({ where: { teacherSubjectId: { in: assignmentIds } } }),
+        tx.earlyNoticeClass.count({ where: { teacherSubjectId: { in: ids } } }),
     ]);
-    if (![notices, affectedClasses, activities, units, materials, contents].some(Boolean)) {
-        // Los horarios tienen onDelete Cascade y no hay avisos vinculados.
+    if (!notices && !classes) {
         await tx.teacherSubject.deleteMany({ where: { subjectId: id } });
         await tx.subject.delete({ where: { id } });
         return { id, permanentlyDeleted: true };
     }
-    if (assignmentIds.length) {
-        await tx.teacherSubject.updateMany({ where: { id: { in: assignmentIds } }, data: { isActive: false } });
-        await tx.activity.updateMany({
-            where: { teacherSubjectId: { in: assignmentIds } },
-            data: { isPublished: false, status: 'INACTIVE' },
-        });
-        await tx.studyMaterial.updateMany({
-            where: { teacherSubjectId: { in: assignmentIds } }, data: { isPublished: false },
-        });
-    }
+    if (ids.length) await tx.teacherSubject.updateMany({ where: { id: { in: ids } }, data: { isActive: false } });
     return tx.subject.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
 });
 

@@ -2,10 +2,6 @@
 import { canAnyRole } from '../config/permissions.js';
 import * as subjectRepository from '../repositories/subject.repository.js';
 
-const AVAILABLE_GAMES = [
-    { id: 'pig_game', nombre: 'Pig Game' },
-];
-
 const VALID_DAYS = [
     'LUNES',
     'MARTES',
@@ -213,7 +209,7 @@ export const listSubjectsService = requester => {
 
 export const listSubjectGamesService = requester => {
     assertPermission(requester);
-    return AVAILABLE_GAMES;
+    return []; // Compatibilidad temporal: la gestión de juegos fue retirada.
 };
 
 export const createSubjectService = async (body, requester) => {

@@ -70,24 +70,11 @@ export const createStudentSelfSignup = ({ userData, courseId }) => {
         studentProfile: {
           create: {
             legajoStudent: `ALU-${Date.now()}`,
-            avatarConfig: {
-              create: {
-                configJson: {
-                  skin: 'default',
-                  hair: 'short',
-                  shirtColor: '#3b82f6',
-                },
-              },
-            },
           },
         },
       },
       include: {
-        studentProfile: {
-          include: {
-            avatarConfig: true,
-          },
-        },
+        studentProfile: true,
       },
     });
 
@@ -170,8 +157,6 @@ export const transferUserInstitution = async ({ id, previousInstitutionId, targe
       const ids = active.map(row => row.id);
       await tx.teacherSubject.updateMany({ where: { id: { in: ids } }, data: { isActive: false } });
       if (ids.length) {
-        await tx.activity.updateMany({ where: { teacherSubjectId: { in: ids } }, data: { isPublished: false, status: 'INACTIVE' } });
-        await tx.studyMaterial.updateMany({ where: { teacherSubjectId: { in: ids } }, data: { isPublished: false } });
       }
     }
     // Invalidar sesiones y suscripciones Push del usuario: requiere nuevo inicio de sesión.
@@ -208,8 +193,6 @@ export const archiveUserWithRelations = async ({ id, institutionId }) => {
       const ids = active.map(row => row.id);
       await tx.teacherSubject.updateMany({ where: { id: { in: ids } }, data: { isActive: false } });
       // Ya no deben publicarse actividades ni documentos ligados a la cuenta retirada.
-      await tx.activity.updateMany({ where: { teacherId: user.teacherProfile.id, isPublished: true }, data: { isPublished: false, status: 'INACTIVE' } });
-      if (ids.length) await tx.studyMaterial.updateMany({ where: { teacherSubjectId: { in: ids } }, data: { isPublished: false } });
     }
     if (user.studentProfile) await tx.studentCourse.deleteMany({ where: { studentId: user.studentProfile.id } });
     await tx.refreshToken.deleteMany({ where: { userId: id } });

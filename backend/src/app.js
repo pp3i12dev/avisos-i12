@@ -11,7 +11,6 @@ import { timingSafeEqual } from 'node:crypto';
 import { processWebPushQueue } from './services/webPush.service.js';
 
 import apiRouter from './routes/index.js';
-import studentRoutes from './routes/student.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import invitationsRoutes from './routes/invitations.routes.js';
 import publicRoutes from './routes/public.routes.js';
@@ -21,7 +20,7 @@ import institutionCommunicationRoutes from './routes/institutionCommunication.ro
 const app = express();
 
 // CORS no reemplaza JWT; limita qué sitios pueden invocar la API desde navegadores.
-// Unity/Android y herramientas servidor-a-servidor no suelen enviar Origin.
+// Clientes servidor-a-servidor no suelen enviar Origin.
 const allowedBrowserOrigins = new Set([
     process.env.FRONTEND_URL,
     ...(process.env.CORS_ALLOWED_ORIGINS || '').split(','),
@@ -31,7 +30,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 app.use(cors({ origin: (origin, done) => {
     if (!origin || allowedBrowserOrigins.has(origin)) return done(null, true);
-    return done(new Error('Origen CORS no autorizado para EduQuest.'));
+    return done(new Error('Origen CORS no autorizado para Avisos I12.'));
 } }));
 app.use(express.json());
 
@@ -44,7 +43,7 @@ app.use((req, res, next) => {
     if (changed && related) {
         res.once('finish', () => {
             if (res.statusCode >= 200 && res.statusCode < 300)
-                void processWebPushQueue().catch(err => console.error('[EduQuest][PUSH] Post-commit:', err));
+                void processWebPushQueue().catch(err => console.error('[Avisos I12][PUSH] Post-commit:', err));
         });
     }
     next();
@@ -67,7 +66,7 @@ app.post('/internal/web-push/drain', async (req, res) => {
         await processWebPushQueue();
         return res.json({ ok: true });
     } catch (error) {
-        console.error('[EduQuest][PUSH] Recuperacion fallida:', error);
+        console.error('[Avisos I12][PUSH] Recuperacion fallida:', error);
         return res.sendStatus(503);
     }
 });
@@ -83,7 +82,6 @@ app.use('/api', apiRouter);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/invitations', invitationsRoutes);
 app.use('/api/public', publicRoutes);
-app.use('/api/student', studentRoutes);
 
 // Avisos Tempranos
 app.use('/api/early-notices', earlyNoticeRoutes);
