@@ -54,7 +54,6 @@ model Course {
   institution Institution @relation(fields: [institutionId], references: [id])
   careerId Int?
   career Career? @relation(fields: [careerId], references: [id])
-  ActivityCourse ActivityCourse[]
   students StudentCourse[]
   teachers TeacherSubject[]
   schedules SubjectSchedule[]
@@ -88,10 +87,6 @@ model TeacherSubject {
   courseId Int
   course Course @relation(fields: [courseId], references: [id])
   isActive Boolean @default(true)
-  activities Activity[]
-  contents TeacherSubjectContent[]
-  units Unit[]
-  studyMaterials StudyMaterial[]
   earlyNotices EarlyNotice[]
   affectedNoticeClasses EarlyNoticeClass[]
   @@unique([teacherId, subjectId, courseId])

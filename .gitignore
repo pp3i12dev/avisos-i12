@@ -12,3 +12,8 @@ coverage/
 
 .vscode/
 .idea/
+
+# Copias de seguridad
+*.rar
+*.zip
+*.7z

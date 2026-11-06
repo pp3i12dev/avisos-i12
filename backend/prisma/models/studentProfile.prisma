@@ -1,9 +1,6 @@
 model StudentProfile {
   id            Int      @id @default(autoincrement())
   legajoStudent String   @unique
-  puntosTotales Int      @default(0)
-  nivelActual   Int      @default(1)
-  monedas       Int      @default(0)
   createdAt     DateTime @default(now())
 
   userId Int  @unique
@@ -11,7 +8,4 @@ model StudentProfile {
 
   courses      StudentCourse[]
   attendances  Attendance[]
-  attempts     GameAttempt[]
-  avatarConfig AvatarConfig?
-  inventory    StudentInventory[]
 }
