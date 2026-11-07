@@ -1,5 +1,7 @@
+import { canActivatePendingStaff } from '../utils/pendingAccountPolicy.js';
 
 import { getPrisma } from '../config/prisma.js';
+import { coverageRelations } from '../services/preceptorCoverage.service.js';
 
 const PROFILE_INCLUDE = {
   directorProfile: true,
@@ -31,8 +33,16 @@ export const listUsersByProfile = ({ institutionId, profileField }) => {
     },
     include: {
       [profileField]: profileField === 'studentProfile'
-        ? { include: { courses: { include: { course: { include: { career: true } } } } } }
-        : true,
+        ? { include: {
+            // Matrícula heredada: solo referencia, no decide destinatarios.
+            courses: { include: { course: { include: { career: true } } } },
+            careerMemberships: { include: { career: { select: { id: true, nombre: true } } } },
+            noticeSubscriptions: { include: {
+              course: { include: { career: true } },
+              subject: { select: { id: true, nombre: true } },
+            } },
+          } }
+        : profileField === 'preceptorProfile' ? { include: coverageRelations } : true,
     },
     orderBy: {
       lastName: 'asc',
@@ -55,7 +65,7 @@ export const createUserWithProfile = ({
       },
     },
     include: {
-      [profileField]: true,
+      [profileField]: profileField === 'preceptorProfile' ? { include: coverageRelations } : true,
     },
   });
 };
@@ -117,7 +127,7 @@ export const updateUserWithProfile = ({
         : {}),
     },
     include: {
-      [profileField]: true,
+      [profileField]: profileField === 'preceptorProfile' ? { include: coverageRelations } : true,
     },
   });
 };
@@ -153,7 +163,18 @@ export const transferUserInstitution = async ({ id, previousInstitutionId, targe
     if (!user) throw Object.assign(new Error('Usuario inexistente'), { status: 404 });
     const destination = await tx.institution.findFirst({ where: { id: targetInstitutionId, isActive: true }, select: { id: true } });
     if (!destination) throw Object.assign(new Error('La institución de destino no está disponible'), { status: 400 });
-    if (user.studentProfile) await tx.studentCourse.deleteMany({ where: { studentId: user.studentProfile.id } });
+    if (user.studentProfile) {
+      // Traslado de instituto: no puede conservar suscripciones ni pertenencias
+      // a carreras de la institución anterior. Evita recepción cruzada de avisos.
+      const studentId = user.studentProfile.id;
+      await tx.studentNoticeSubscription.deleteMany({ where: { studentId } });
+      await tx.studentCareer.deleteMany({ where: { studentId } });
+      await tx.studentCourse.deleteMany({ where: { studentId } });
+    }
+    if (user.preceptorProfile && profileField !== 'preceptorProfile') {
+      // Traslado de usuarios con múltiples perfiles: también liberar las coberturas del preceptor.
+      await tx.preceptorCoverage.deleteMany({ where: { preceptorId: user.preceptorProfile.id } });
+    }
     if (user.teacherProfile) {
       const active = await tx.teacherSubject.findMany({ where: { teacherId: user.teacherProfile.id, isActive: true }, select: { id: true } });
       const ids = active.map(row => row.id);
@@ -172,7 +193,7 @@ export const transferUserInstitution = async ({ id, previousInstitutionId, targe
         institutionId: targetInstitutionId,
         ...(profileData && Object.keys(profileData).length ? { [profileField]: { update: profileData } } : {}),
       },
-      include: { [profileField]: true },
+      include: { [profileField]: profileField === 'preceptorProfile' ? { include: coverageRelations } : true },
     });
   });
 };
@@ -243,10 +264,15 @@ export const deleteStudentPermanently = async ({ id, institutionId }) => {
   });
 };
 
+
 /**
- * Baja física controlada. No elimina avisos, comunicaciones o asistencia
- * firmados por personal: si hay una relación de auditoría restrictiva,
- * PostgreSQL bloquea la operación y se revierte la transacción.
+ * Eliminación definitiva solicitada expresamente por una autoridad.
+ * ATENCIÓN: destruye también los avisos/comunicaciones firmados por la cuenta,
+ * sus entregas y registros de asistencia propios; no se usa en bajas normales.
+ * Todo se realiza en la misma transacción. Ante cualquier FK desconocida, rollback.
+ * No afecta avisos de otros autores salvo que incluyan clases impartidas por el
+ * docente eliminado; en ese caso se borra el aviso completo para evitar destinatarios
+ * o clases inconsistentes (el formulario exige comunicar este efecto al operador).
  */
 export async function deleteAccountTx(tx, id, institutionId = null, options = {}) {
   const user = await tx.user.findFirst({
@@ -255,40 +281,81 @@ export async function deleteAccountTx(tx, id, institutionId = null, options = {}
   });
   if (!user) throw Object.assign(new Error('Usuario no encontrado en la institución.'), { status: 404 });
   if (options.callerId === id) throw Object.assign(new Error('No podés eliminar tu propia cuenta.'), { status: 403 });
-  if (options.expectedProfileField && !user[options.expectedProfileField]) throw Object.assign(new Error('Cambió el rol de esta cuenta. Actualizá la lista.'), { status: 409 });
-  if (user.isSuperAdmin && options.actorCanDeleteSuperAdmin === false) throw Object.assign(new Error('Un directivo no puede eliminar superadministradores.'), { status: 403 });
-
-  if (user.isSuperAdmin) {
-    const activeAdmins = await tx.user.count({where:{isSuperAdmin:true,isActive:true,deletedAt:null}});
-    if(activeAdmins<=1) throw Object.assign(new Error('No se puede eliminar al último superadministrador activo.'),{status:409});
+  if (options.expectedProfileField && !user[options.expectedProfileField]) {
+    throw Object.assign(new Error('La cuenta cambió de rol. Actualizá el listado.'), { status: 409 });
   }
-  // Datos privados de la cuenta y entregas de correo/push (relaciones en cascada).
+  if (user.isSuperAdmin && options.actorCanDeleteSuperAdmin === false) {
+    throw Object.assign(new Error('Un directivo no puede eliminar superadministradores.'), { status: 403 });
+  }
+  if (user.isSuperAdmin) {
+    const activeAdmins = await tx.user.count({ where: { isSuperAdmin: true, isActive: true, deletedAt: null } });
+    if (activeAdmins <= 1) {
+      throw Object.assign(new Error('No se puede eliminar al último superadministrador activo.'), { status: 409 });
+    }
+  }
+
+  // Se eliminan avisos con autor o profesor obligatorio. Una notificación
+  // derivada desaparece por cascada, incluidos trabajos de email y Web Push.
+  const affectedNoticeFilters = [{ teacherUserId: id }, { createdById: id }];
+  if (user.teacherProfile) {
+    affectedNoticeFilters.push(
+      { teacherSubject: { teacherId: user.teacherProfile.id } },
+      { affectedClasses: { some: { teacherSubject: { teacherId: user.teacherProfile.id } } } },
+    );
+  }
+  const earlyNoticesRemoved = await tx.earlyNotice.deleteMany({ where: { OR: affectedNoticeFilters } });
+  // Otras publicaciones siguen vigentes si el usuario solo las actualizó
+  // o confirmó; esos campos son opcionales y se desasocian.
+  await tx.earlyNotice.updateMany({ where: { updatedById: id }, data: { updatedById: null } });
+  await tx.earlyNotice.updateMany({ where: { confirmedById: id }, data: { confirmedById: null } });
+  await tx.earlyNoticeRevision.deleteMany({ where: { createdById: id } });
+
+  const institutionEventsRemoved = await tx.institutionEvent.deleteMany({ where: { createdById: id } });
+  await tx.institutionEvent.updateMany({ where: { updatedById: id }, data: { updatedById: null } });
+  await tx.institutionEventRevision.deleteMany({ where: { createdById: id } });
+
+  // Anular invitaciones que haya emitido la cuenta. Los tokens quedan inválidos.
+  const invitationsRemoved = await tx.invitation.deleteMany({ where: { invitedById: id } });
+  // Estos campos son referencias numéricas informativas, no FK Prisma.
+  await tx.user.updateMany({ where: { signupReviewedById: id }, data: { signupReviewedById: null } });
+  await tx.staffSignupRequest.updateMany({ where: { reviewedById: id }, data: { reviewedById: null } });
+
+  if (user.teacherProfile) {
+    await tx.teacherSubject.deleteMany({ where: { teacherId: user.teacherProfile.id } });
+  }
+  if (user.preceptorProfile) {
+    await tx.attendance.deleteMany({ where: { preceptorId: user.preceptorProfile.id } });
+    // PreceptorCoverage tiene onDelete: Cascade respecto de PreceptorProfile.
+  }
+  if (user.studentProfile) {
+    await tx.attendance.deleteMany({ where: { studentId: user.studentProfile.id } });
+    await tx.studentCourse.deleteMany({ where: { studentId: user.studentProfile.id } });
+    // StudentCareer, StudentNoticeSubscription y EnrollmentMovement usan CASCADE.
+  }
+
   await tx.notification.deleteMany({ where: { OR: [{ userId: id }, { signupUserId: id }] } });
   await tx.refreshToken.deleteMany({ where: { userId: id } });
   await tx.webPushSubscription.deleteMany({ where: { userId: id } });
   await tx.userDevice.deleteMany({ where: { userId: id } });
   await tx.passwordResetToken.deleteMany({ where: { userId: id } });
 
-  if (user.studentProfile) {
-    await tx.attendance.deleteMany({ where: { studentId: user.studentProfile.id } });
-    await tx.studentCourse.deleteMany({ where: { studentId: user.studentProfile.id } });
-    // EnrollmentMovement se elimina por su FK CASCADE.
-  }
-  if (user.teacherProfile) {
-    // Si hay avisos dependientes de TeacherSubject, esta operación falla
-    // sin borrar nada: priorizamos trazabilidad académica y la auditoría.
-    await tx.teacherSubject.deleteMany({ where: { teacherId: user.teacherProfile.id } });
-  }
-  // Otras relaciones (avisos creados, confirmaciones, invitaciones y asistencia
-  // registrada por preceptores) tienen FKs que protegen el historial.
+  // Los perfiles tienen FK onDelete Cascade al User; desuscripciones, carreras
+  // y coberturas también se eliminan al borrar sus perfiles.
   await tx.user.delete({ where: { id } });
-  return { id };
+  return {
+    id, deleted: true,
+    removed: {
+      earlyNotices: earlyNoticesRemoved.count,
+      institutionEvents: institutionEventsRemoved.count,
+      invitations: invitationsRemoved.count,
+    },
+  };
 }
 
 export const deleteUserPermanently = async ({ id, institutionId, callerId, actorCanDeleteSuperAdmin, expectedProfileField }) => {
   const prisma = getPrisma();
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(8701, 2207)`;
+    await tx.$queryRaw`SELECT 1::integer AS lock_taken FROM pg_advisory_xact_lock(8701, 2207)`;
     return deleteAccountTx(tx, id, institutionId, { callerId, actorCanDeleteSuperAdmin, expectedProfileField });
   }, { maxWait: 10000, timeout: 20000 });
 };
@@ -296,7 +363,7 @@ export const deleteUserPermanently = async ({ id, institutionId, callerId, actor
 export const bulkDeleteStudentsPermanently = async ({ ids, institutionId }) => {
   const prisma = getPrisma();
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(8701, 2207)`;
+    await tx.$queryRaw`SELECT 1::integer AS lock_taken FROM pg_advisory_xact_lock(8701, 2207)`;
     const users = await tx.user.findMany({
       where: { id: { in: ids }, deletedAt: null, ...(institutionId == null ? {} : { institutionId }) },
       include: PROFILE_INCLUDE,
@@ -323,7 +390,7 @@ export const assignStudentCourse = async ({
 
   return prisma.$transaction(async (tx) => {
     // La edición del alumno puede TRANSFERIR la matrícula de curso, nunca duplicarla.
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(${studentProfileId}::integer, 817231::integer)`;
+    await tx.$queryRaw`SELECT 1::integer AS lock_taken FROM pg_advisory_xact_lock(${studentProfileId}::integer, 817231::integer)`;
     const profile = await tx.studentProfile.findUnique({
       where: { id: studentProfileId },
       select: { user: { select: { institutionId: true } } },
@@ -481,3 +548,33 @@ export const findUserByIdForInstitution = ({ id, institutionId }) => getPrisma()
   where: { id, deletedAt: null, ...(institutionId != null ? { institutionId } : {}) },
   select: { id: true, signupStatus: true },
 });
+
+/**
+ * Etapa 23: unificación institucional de una solicitud pública PENDING.
+ * La cuenta original no conserva su contraseña ni enlaces de verificación.
+ * Exige identidad EXACTA y autorización previa en users.service.
+ */
+export async function activatePendingStaffAccount({ userData, profileField, profileData, requestedRole, actorId }) {
+  const db=getPrisma();
+  return db.$transaction(async tx=>{
+    const pending=await tx.user.findUnique({where:{email:userData.email.toLowerCase()},include:{
+      staffSignup:true,studentProfile:true,teacherProfile:true,preceptorProfile:true,directorProfile:true,
+    }});
+    if (!canActivatePendingStaff(pending, userData, requestedRole)) {
+      const error=new Error('Existe un usuario con esos datos, pero no es una solicitud pendiente del mismo cargo, DNI e institución. Revisalo antes de continuar.');
+      error.status=409;throw error;
+    }
+    const claimed=await tx.user.updateMany({where:{id:pending.id,isActive:false,deletedAt:null,signupStatus:'PENDING'},
+      data:{isActive:true,signupStatus:'APPROVED',signupReviewedAt:new Date(),signupReviewedById:actorId}});
+    if(claimed.count!==1){const e=new Error('La solicitud fue procesada por otra autoridad.');e.status=409;throw e;}
+    await tx.emailVerificationToken.deleteMany({where:{userId:pending.id}});
+    await tx.passwordResetToken.deleteMany({where:{userId:pending.id}});
+    await tx.refreshToken.deleteMany({where:{userId:pending.id}});
+    await tx.staffSignupRequest.update({where:{userId:pending.id},data:{status:'APPROVED',reviewedAt:new Date(),reviewedById:actorId,rejectionReason:null}});
+    return tx.user.update({where:{id:pending.id},data:{
+      passwordHash:userData.passwordHash,firstName:userData.firstName,lastName:userData.lastName,
+      telefono:userData.telefono ?? null,
+      [profileField]:{create:profileData},
+    },include:{[profileField]:profileField==='preceptorProfile'?{include:coverageRelations}:true}});
+  });
+}

@@ -16,9 +16,10 @@ export const notificationService = {
             await emailRepo.cancelPendingForNotice(notice.id);
         }
         const affected = await repo.findNoticeClasses(notice.id);
-        const courseIds = [...new Set(affected.map(c => c.teacherSubject.courseId))];
-        if (!courseIds.length) courseIds.push(notice.courseId);
-        const allRows = (await Promise.all(courseIds.map(id => repo.findStudentsByCourse(id)))).flat();
+        const offerings = affected.length
+            ? affected.map(c => ({ courseId: c.teacherSubject.courseId, subjectId: c.teacherSubject.subjectId }))
+            : [{ courseId: notice.courseId, subjectId: notice.subjectId }];
+        const allRows = await repo.findStudentsByOfferings(offerings);
         const students = [...new Map(allRows.map(r => r.student.user).map(u => [u.id, u])).values()];
         const modalityLabel = { PRESENCIAL: 'Presencial', VIRTUAL_SINCRONA: 'Virtual sincrónica', VIRTUAL_ASINCRONA: 'Virtual asincrónica' };
         const lines = affected.map(c => {

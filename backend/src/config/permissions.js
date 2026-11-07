@@ -17,8 +17,8 @@ export const PERMISSIONS = {
     'director:deactivate': ['DIRECTOR'],
     'director:delete': ['DIRECTOR'],
 
-    'preceptor:list': ['DIRECTOR'],
-    'preceptor:create': ['DIRECTOR'],
+    'preceptor:list': ['DIRECTOR', 'PRECEPTOR'],
+    'preceptor:create': ['DIRECTOR', 'PRECEPTOR'],
     'preceptor:edit': ['DIRECTOR'],
     'preceptor:deactivate': ['DIRECTOR'],
     'preceptor:delete': ['DIRECTOR'],
@@ -45,6 +45,7 @@ export const PERMISSIONS = {
     'attendance:take': ['PRECEPTOR', 'TEACHER'],
 
     'selfSignup:approve': ['DIRECTOR', 'PRECEPTOR'],
+    'staffSignup:review': ['DIRECTOR', 'PRECEPTOR'],
 
     'invitation:sendToDirector': ['DIRECTOR'],
     'invitation:sendToPreceptor': ['DIRECTOR'],

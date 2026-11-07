@@ -26,9 +26,13 @@ import {
     PanelLeftClose,
     PanelLeftOpen,
     Sparkles,
+    ContactRound,
+    UsersRound,
+    BookOpenCheck,
 } from 'lucide-react';
 
 import { AuthContext } from '../context/AuthContext';
+import { hasAny } from '../config/permissions';
 import WebPushSettings from '../components/WebPushSettings';
 import InstallPwaButton from '../components/InstallPwaButton';
 import { revokePushOnLogout } from '../services/webPush';
@@ -59,29 +63,42 @@ const ROLE_LABELS = {
     STUDENT: 'Alumno',
 };
 
-const NAVIGATION = [
+// La sidebar no despliega submenús: Gestión académica y Gestión de usuarios
+// abren las tarjetas de siempre dentro de /dashboard (DashboardView).
+// Los permisos se verifican aquí para mostrar la opción, y en las rutas/backend
+// para autorizar de verdad las acciones.
+const PRIMARY_NAVIGATION = [
+    { to: '/dashboard/early-notices', label: 'Avisos Tempranos', Icon: ClipboardList },
+    { to: '/dashboard/institution-communications', label: 'Avisos Institucionales', Icon: Megaphone },
     {
-        to: '/dashboard',
-        label: 'Panel principal',
-        Icon: LayoutDashboard,
-        end: true,
+        to: '/dashboard', label: 'Gestión académica', Icon: GraduationCap,
+        dashboardSection: 'academic',
+        actions: ['institution:manage', 'career:manage', 'course:manage', 'subject:manage', 'teacher:assignSubject', 'schedule:manage'],
     },
     {
-        to: '/dashboard/early-notices',
-        label: 'Avisos Tempranos',
-        Icon: ClipboardList,
+        to: '/dashboard', label: 'Gestión de usuarios', Icon: UsersRound,
+        dashboardSection: 'users',
+        actions: ['director:manage', 'preceptor:manage', 'teacher:manage', 'student:view', 'student:enroll', 'staffSignup:review', 'invitation:manage'],
     },
-    {
-        to: '/dashboard/institution-communications',
-        label: 'Comunicaciones',
-        Icon: Megaphone,
-    },
-    {
-        to: '/dashboard/profile',
-        label: 'Mi perfil',
-        Icon: UserRound,
-    },
+    { to: '/dashboard/notice-subscriptions', label: 'Mis suscripciones a avisos', Icon: BookOpenCheck, studentOnly: true },
+    { to: '/dashboard/contact-directory', label: 'Directorio de contactos', Icon: ContactRound },
 ];
+
+// Siempre primero: acceso directo al panel de tarjetas.
+const HOME_NAVIGATION = [
+    { to: '/dashboard', label: 'Panel principal', Icon: LayoutDashboard, end: true },
+];
+
+// Siempre al final, debajo del segundo separador.
+const PROFILE_NAVIGATION = [
+    { to: '/dashboard/profile', label: 'Mi perfil', Icon: UserRound },
+];
+
+function isLocationActive(pathname, item) {
+    return item.end
+        ? pathname === item.to || pathname === `${item.to}/`
+        : pathname === item.to || pathname.startsWith(`${item.to}/`);
+}
 
 function getInitials(user) {
     const first = user?.firstName?.trim()?.charAt(0) || '';
@@ -98,64 +115,61 @@ function SidebarLink({
     collapsed = false,
     onNavigate,
     unreadCount = 0,
+    dashboardSection = null,
 }) {
+    const location = useLocation();
+    const isDashboardRoot = location.pathname === '/dashboard' || location.pathname === '/dashboard/';
+    const isSelected = routeActive => {
+        if (dashboardSection) return isDashboardRoot && location.state?.section === dashboardSection;
+        if (to === '/dashboard') return isDashboardRoot && !location.state?.section;
+        return routeActive;
+    };
+
     return (
         <NavLink
             to={to}
-            state={to === '/dashboard' ? { home: true } : undefined}
+            state={dashboardSection ? { section: dashboardSection } : (to === '/dashboard' ? { home: true } : undefined)}
             end={end}
             onClick={onNavigate}
             title={collapsed ? label : undefined}
             className={({ isActive }) =>
-                `group relative flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 text-sm font-medium transition-all duration-200 ${isActive
+                `group relative flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 text-sm font-medium transition-all duration-200 ${isSelected(isActive)
                     ? 'border-[#EFADAD] bg-[#FCEAEA] text-[#9F1111] shadow-sm shadow-black/10'
                     : 'border-transparent text-[#F3F4F6] hover:border-white/20 hover:bg-white/10 hover:text-white'
                 } ${collapsed ? 'justify-center' : ''}`
             }
         >
-            {({ isActive }) => (
-                <>
-                    {isActive && (
-                        <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-[#C61515]" />
-                    )}
-
-                    <Icon
-                        size={19}
-                        strokeWidth={isActive ? 2.3 : 1.9}
-                        className={`shrink-0 ${isActive
-                                ? 'text-[#B31212]'
-                                : 'text-[#ECEDEF] group-hover:text-white'
-                            }`}
-                    />
-
-                    {collapsed && unreadCount > 0 && (
-                        <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C61515] px-1 text-[10px] font-bold text-white">
-                            {unreadCount > 99 ? '99+' : unreadCount}
-                        </span>
-                    )}
-
-                    {!collapsed && (
-                        <>
-                            <span className="min-w-0 flex-1 truncate">
-                                {label}
+            {({ isActive: routeActive }) => {
+                const isActive = isSelected(routeActive);
+                return (
+                    <>
+                        {isActive && (
+                            <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-[#C61515]" />
+                        )}
+                        <Icon
+                            size={19}
+                            strokeWidth={isActive ? 2.3 : 1.9}
+                            className={`shrink-0 ${isActive ? 'text-[#B31212]' : 'text-[#ECEDEF] group-hover:text-white'}`}
+                        />
+                        {collapsed && unreadCount > 0 && (
+                            <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C61515] px-1 text-[10px] font-bold text-white">
+                                {unreadCount > 99 ? '99+' : unreadCount}
                             </span>
-
-                            {unreadCount > 0 && (
-                                <span aria-label={`${unreadCount} notificaciones sin leer`} className="inline-flex min-w-6 items-center justify-center rounded-full bg-[#C61515] px-1.5 py-0.5 text-xs font-bold text-white">
-                                    {unreadCount > 99 ? '99+' : unreadCount}
-                                </span>
-                            )}
-
-                            {isActive && (
-                                <ChevronRight
-                                    size={15}
-                                    className="text-[#C61515]"
-                                />
-                            )}
-                        </>
-                    )}
-                </>
-            )}
+                        )}
+                        {!collapsed && (
+                            <>
+                                <span className="min-w-0 flex-1 truncate">{label}</span>
+                                {unreadCount > 0 && (
+                                    <span aria-label={`${unreadCount} notificaciones sin leer`} className="inline-flex min-w-6 items-center justify-center rounded-full bg-[#C61515] px-1.5 py-0.5 text-xs font-bold text-white">
+                                        {unreadCount > 99 ? '99+' : unreadCount}
+                                    </span>
+                                )}
+                                {isActive && <ChevronRight size={15} className="text-[#C61515]" />}
+                            </>
+                        )}
+                    </>
+                );
+            }}
         </NavLink>
     );
 }
@@ -208,18 +222,34 @@ export default function DashboardLayout() {
             .filter(Boolean)
             .join(' ') || 'Usuario';
 
-    const visibleNavigation = NAVIGATION;
+    // Las secciones administrativas existen en DashboardView solo para gestores.
+    // No se renderizan subopciones en la sidebar: las tarjetas las filtran por rol.
+    const isAdministrator = displayRoles.some(role => ['SUPER_ADMIN', 'DIRECTOR', 'PRECEPTOR'].includes(role));
+    const canShowLink = item => {
+        if (item.studentOnly) return roles.includes('STUDENT');
+        if (item.dashboardSection) {
+            return isAdministrator && item.actions.some(action => hasAny(displayRoles, action));
+        }
+        return !item.action || hasAny(displayRoles, item.action);
+    };
+    const visibleNavigation = PRIMARY_NAVIGATION.filter(canShowLink);
 
-    const currentPage =
-        [...visibleNavigation]
-            .sort((a, b) => b.to.length - a.to.length)
-            .find((item) =>
-                item.end
-                    ? isRoot
-                    : location.pathname === item.to ||
-                    location.pathname.startsWith(`${item.to}/`)
-            )?.label ||
-        (isRoot ? 'Panel principal' : 'Gestión académica');
+    const currentPage = [...HOME_NAVIGATION, ...visibleNavigation, ...PROFILE_NAVIGATION]
+        .filter(item => !item.dashboardSection)
+        .sort((a, b) => b.to.length - a.to.length)
+        .find(item => isLocationActive(location.pathname, item))?.label ||
+        (isRoot ? 'Panel principal' : 'Avisos I12');
+
+    const renderSidebarItems = (items, { collapsed = false, onNavigate } = {}) =>
+        items.map(item => (
+            <SidebarLink
+                key={item.dashboardSection || item.to}
+                {...item}
+                unreadCount={item.to === '/dashboard/early-notices' ? unreadCount : 0}
+                collapsed={collapsed}
+                onNavigate={onNavigate}
+            />
+        ));
 
     const todayLabel = new Intl.DateTimeFormat('es-AR', {
         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
@@ -232,15 +262,18 @@ export default function DashboardLayout() {
         'early-notices': 'Avisos tempranos',
         'institution-communications': 'Comunicaciones institucionales',
         profile: 'Mi perfil',
+        'contact-directory': 'Directorio de contactos',
+        'notice-subscriptions': 'Suscripciones a avisos',
+        'staff-requests': 'Solicitudes de personal',
     };
     const routePart = location.pathname.split('/')[2];
     const assignmentRouteTitles = {
-        students: 'Matrículas de alumnos', teachers: 'Asignación de docentes', schedules: 'Horarios y turnos',
+        students: 'Suscripciones de alumnos', teachers: 'Asignación de docentes', schedules: 'Horarios y turnos',
     };
     const headerTitle = isRoot
         ? (dashboardHeader?.title || `¡Hola, ${user?.firstName || 'Usuario'}!`)
         : (location.pathname.startsWith('/dashboard/students/requests')
-            ? 'Solicitudes de inscripción'
+            ? 'Solicitudes de personal'
             : routePart === 'assignments'
                 ? (assignmentRouteTitles[location.pathname.split('/')[3]] || 'Asignaciones')
                 : routeNames[routePart] || currentPage);
@@ -443,7 +476,7 @@ export default function DashboardLayout() {
                                                 <button
                                                     type="button"
                                                     onClick={handleLogout}
-                                                    className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-left text-sm text-rose-700 transition-colors hover:bg-rose-50 hover:text-rose-800"
+                                                    className="flex w-full cursor-pointer items-center gap-3 rounded-lg bg-[#C61515] px-3 py-3 text-left text-sm font-semibold text-white transition-colors hover:bg-[#A81010]"
                                                 >
                                                     <LogOut size={18} />
                                                     Cerrar sesión
@@ -504,22 +537,19 @@ export default function DashboardLayout() {
                                 </button>
                             </div>
 
-                            {/* ENLACES */}
+                            {/* Módulos principales en orden por importancia. Scroll independiente del cierre de sesión. */}
                             <nav
                                 aria-label="Navegación principal"
-                                className="space-y-1.5"
+                                className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pb-4 pr-1"
                             >
-                                {visibleNavigation.map((item) => (
-                                    <SidebarLink
-                                        key={item.to}
-                                        {...item}
-                                        unreadCount={item.to === '/dashboard/early-notices' ? unreadCount : 0}
-                                        collapsed={sidebarCollapsed}
-                                    />
-                                ))}
+                                {renderSidebarItems(HOME_NAVIGATION, { collapsed: sidebarCollapsed })}
+                                <div role="separator" className="my-3 border-t border-white/25" />
+                                {renderSidebarItems(visibleNavigation, { collapsed: sidebarCollapsed })}
+                                <div role="separator" className="my-3 border-t border-white/25" />
+                                {renderSidebarItems(PROFILE_NAVIGATION, { collapsed: sidebarCollapsed })}
                             </nav>
 
-                            <div className="mt-auto pt-6">
+                            <div className="shrink-0 pt-3">
 
                                 {!sidebarCollapsed && (
                                     <div className="mb-4 rounded-xl border border-white/15 bg-white/10 p-4">
@@ -546,7 +576,7 @@ export default function DashboardLayout() {
                                             ? 'Cerrar sesión'
                                             : undefined
                                     }
-                                    className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border border-white/20 px-3 py-3 text-sm font-medium text-white transition-colors hover:border-white/30 hover:bg-white/10 ${sidebarCollapsed
+                                    className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border border-[#9F1111] bg-[#C61515] px-3 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:border-[#840C0C] hover:bg-[#A81010] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${sidebarCollapsed
                                             ? 'justify-center'
                                             : ''
                                         }`}
@@ -651,15 +681,12 @@ export default function DashboardLayout() {
                                     Navegación
                                 </p>
 
-                                <nav className="space-y-1.5">
-                                    {visibleNavigation.map((item) => (
-                                        <SidebarLink
-                                            key={item.to}
-                                            {...item}
-                                            unreadCount={item.to === '/dashboard/early-notices' ? unreadCount : 0}
-                                            onNavigate={closeMobileMenu}
-                                        />
-                                    ))}
+                                <nav aria-label="Navegación móvil" className="space-y-1.5">
+                                    {renderSidebarItems(HOME_NAVIGATION, { onNavigate: closeMobileMenu })}
+                                    <div role="separator" className="my-3 border-t border-white/25" />
+                                    {renderSidebarItems(visibleNavigation, { onNavigate: closeMobileMenu })}
+                                    <div role="separator" className="my-3 border-t border-white/25" />
+                                    {renderSidebarItems(PROFILE_NAVIGATION, { onNavigate: closeMobileMenu })}
                                 </nav>
                             </div>
 
@@ -667,7 +694,7 @@ export default function DashboardLayout() {
                                 <button
                                     type="button"
                                     onClick={handleLogout}
-                                    className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-medium text-white hover:bg-white/20"
+                                    className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-[#9F1111] bg-[#C61515] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#A81010]"
                                 >
                                     <LogOut size={18} />
                                     Cerrar sesión

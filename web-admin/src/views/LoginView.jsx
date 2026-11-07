@@ -268,11 +268,11 @@ export default function LoginView() {
                         </form>
 
                         <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-center">
-                            <p className="text-sm font-semibold text-slate-900">¿Sos alumno y todavía no tenés una cuenta?</p>
-                            <Link to="/registro-alumno" className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-bold text-slate-900 transition hover:bg-white">
-                                <GraduationCap size={18}/> Registrarme como alumno
+                            <p className="text-sm font-semibold text-slate-900">¿Todavía no tenés una cuenta?</p>
+                            <Link to="/registro" className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-bold text-slate-900 transition hover:bg-white">
+                                <GraduationCap size={18}/> Crear cuenta
                             </Link>
-                            <p className="mt-1.5 text-xs text-slate-700">Tu institución deberá aprobar el registro.</p>
+                            <p className="mt-1.5 text-xs text-slate-700">Los alumnos activan su cuenta por correo; el personal requiere autorización si se registra sin invitación.</p>
                         </div>
                         <div className="mt-3"><InstallPwaButton /></div>
                         {/* NOTA DE SEGURIDAD */}

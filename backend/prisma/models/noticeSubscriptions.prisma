@@ -1,0 +1,28 @@
+// Una cuenta puede pertenecer a tantas carreras del mismo instituto como necesite.
+// Esta pertenencia NO acredita matrícula oficial ante la institución.
+model StudentCareer {
+  id Int @id @default(autoincrement())
+  studentId Int
+  careerId Int
+  createdAt DateTime @default(now())
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  career Career @relation(fields: [careerId], references: [id], onDelete: Cascade)
+  @@unique([studentId, careerId])
+  @@index([careerId])
+}
+
+// Suscripción SOLO a avisos: no constituye una inscripción académica.
+// Vincula curso+materia, no docente: al cambiar docente conserva suscriptores.
+model StudentNoticeSubscription {
+  id Int @id @default(autoincrement())
+  studentId Int
+  courseId Int
+  subjectId Int
+  createdAt DateTime @default(now())
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  @@unique([studentId, courseId, subjectId])
+  @@index([courseId, subjectId])
+  @@index([studentId])
+}

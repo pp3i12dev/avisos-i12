@@ -31,9 +31,8 @@ export const earlyNoticeHistoryService = {
             if (teacher) {
                 if (notice.teacherUserId !== user.id) deny();
             } else if (student) {
-                if (notice.status !== 'CONFIRMED') deny();
-                const enrolled = await repository.isStudentEnrolled(notice.courseId, user.id);
-                if (!enrolled) deny();
+                // earlyNoticeService.getById ya validó las suscripciones exactas
+                // (materia+comisión) y el estado provisional del aviso.
             } else {
                 deny();
             }

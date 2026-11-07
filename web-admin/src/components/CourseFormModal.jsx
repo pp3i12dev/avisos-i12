@@ -9,6 +9,7 @@ const currentYear = new Date().getFullYear();
 const emptyForm = () => ({
     nombre: '',
     academicYear: String(currentYear),
+    level: '',
     careerId: '',
     institutionId: '',
     shift: '',
@@ -40,6 +41,7 @@ export default function CourseFormModal({
                     academicYear: String(
                         initialData.academicYear ?? currentYear
                     ),
+                    level: initialData.level == null ? '' : String(initialData.level),
                     institutionId: String(initialData.institutionId ?? institutionId ?? ''),
                     shift: initialData.shift ?? '',
                     careerId:
@@ -79,7 +81,7 @@ export default function CourseFormModal({
         }
 
         if (!SHIFTS.some(item => item.value === form.shift)) return;
-        const payload = { nombre, academicYear, careerId, shift: form.shift };
+        const payload = { nombre, academicYear, careerId, shift: form.shift, level: form.level ? Number(form.level) : null };
         if (isSuperAdmin && !initialData?.id) {
             if (!Number(form.institutionId)) return;
             payload.institutionId = Number(form.institutionId);
@@ -167,6 +169,15 @@ export default function CourseFormModal({
                     />
                 </div>
 
+                <div className="space-y-2">
+                    <label htmlFor="course-level" className="block text-sm font-medium">Año de la carrera (para filtrar avisos)</label>
+                    <select id="course-level" className={inputClass} value={form.level}
+                        onChange={e => setForm(prev => ({ ...prev, level: e.target.value }))}>
+                        <option value="">Sin configurar</option>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(n => <option value={n} key={n}>{n}.º año</option>)}
+                    </select>
+                    <p className="text-xs text-slate-400">Independiente del nombre escrito del curso y del ciclo lectivo.</p>
+                </div>
                 <div className="space-y-2">
                     <label
                         htmlFor="course-career"

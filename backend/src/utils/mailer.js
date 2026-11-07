@@ -173,3 +173,30 @@ export const sendStudentSignupDecisionEmail = ({ to, name, status, reason }) => 
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;color:#172554"><h2>${escapeHtml(title)}</h2><p>Hola, ${escapeHtml(name)}.</p><p>${escapeHtml(message)}</p>${approved ? `<p><a href="${escapeHtml(url)}">Ingresar a Avisos I12</a></p>` : '<p>Consultá con tu institución.</p>'}</div>`,
   });
 };
+
+
+/** Confirmación de correo para cuentas públicas, con enlace de un solo uso. */
+export const sendAccountVerificationEmail = async ({ to, firstName, token }) => {
+  const url = `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')}/verificar-correo?token=${encodeURIComponent(token)}`;
+  const subject = `${brandedPrefix('VERIFICA TU CORREO')} Activá tu cuenta`;
+  return getTransporter().sendMail({
+    from: brandedFrom('VERIFICA TU CORREO'), to, subject,
+    text: `Hola ${firstName}. Confirmá tu correo para Avisos I12:\n${url}\n\nEl enlace vence en 24 horas. Si no creaste esta cuenta, ignorá el mensaje.`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden"><div style="background:#C61515;color:white;padding:22px;font-weight:bold">ISFTNº12 · VERIFICACIÓN DE CORREO</div><div style="padding:24px;color:#20242b"><h2>Confirmá tu correo</h2><p>Hola ${escapeHtml(firstName)}. Para habilitar tu cuenta en Avisos I12, verificá tu correo electrónico.</p><a href="${escapeHtml(url)}" style="background:#C61515;color:white;padding:12px 18px;border-radius:7px;text-decoration:none;display:inline-block">Verificar mi correo</a><p style="color:#64748b;font-size:13px">Enlace válido por 24 horas y de un solo uso. Si no creaste esta cuenta, ignorá el correo.</p></div></div>`,
+  });
+};
+
+
+/** Aprobación de acceso para personal institucional. */
+export const sendStaffSignupDecisionEmail = ({ to, firstName, role, status, reason }) => {
+  const granted = status === 'APPROVED';
+  const roleLabel = ROLE_LABELS[role] || role;
+  const title = granted ? 'Cuenta institucional aprobada' : 'Solicitud de acceso rechazada';
+  const details = granted ? 'Ya podés ingresar a Avisos I12 con tu correo y contraseña.' : `Motivo: ${reason || 'Consultá a tu institución.'}`;
+  const link = `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')}/login`;
+  return getTransporter().sendMail({ from: brandedFrom('ACCESO INSTITUCIONAL'), to,
+    subject: `${brandedPrefix('ACCESO INSTITUCIONAL')} ${title}`,
+    text: `Hola ${firstName}. ${title} para el rol ${roleLabel}.\n${details}\n${link}`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto"><div style="background:#C61515;color:white;padding:20px;font-weight:bold">ISFTNº12 · ACCESO INSTITUCIONAL</div><div style="padding:22px"><h2>${escapeHtml(title)}</h2><p>Hola ${escapeHtml(firstName)}. Tu solicitud de ${escapeHtml(roleLabel)} fue ${granted ? 'aprobada' : 'rechazada'}.</p><p>${escapeHtml(details)}</p><a href="${escapeHtml(link)}">Ingresar a Avisos I12</a></div></div>`,
+  });
+};

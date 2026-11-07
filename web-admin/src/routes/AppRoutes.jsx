@@ -11,16 +11,20 @@ import { AuthContext } from '../context/AuthContext';
 
 import LoginView from '../views/LoginView';
 import StudentRegisterView from '../views/StudentRegisterView';
+import EmailVerificationView from '../views/EmailVerificationView';
+import NoticeSubscriptionsView from '../views/NoticeSubscriptionsView';
+import StaffRequestsView from '../views/StaffRequestsView';
+import AdminNoticeSubscriptionsView from '../views/AdminNoticeSubscriptionsView';
 import ForgotPasswordView from '../views/ForgotPasswordView';
 import ResetPasswordView from '../views/ResetPasswordView';
 import DashboardView from '../views/DashBoardView';
 import DashboardLayout from '../layouts/DashboardLayout';
 
 import UsersListView from '../views/UsersListView';
-import StudentSignupRequestsView from '../views/StudentSignupRequestsView';
 import InvitationsListView from '../views/InvitationListView';
 import AcceptInvitationView from '../views/AcceptInvitationView';
 import ProfileView from '../views/ProfileView';
+import ContactDirectoryView from '../views/ContactDirectoryView';
 
 import CareersListView from '../views/CareersListView';
 import CoursesListView from '../views/CoursesListView';
@@ -29,7 +33,6 @@ import SubjectsListView from '../views/SubjectsListView';
 import InstitutionView from '../views/InstitutionView';
 import InstitutionFormView from '../views/InstitutionFormView';
 
-import StudentCourseAssignmentsView from '../views/StudentCourseAssignmentView';
 import TeacherSubjectAssignmentsView from '../views/TeacherSubjectAssignmentView';
 import SubjectSchedulesView from '../views/SubjectSchedulesView';
 
@@ -68,6 +71,8 @@ export default function AppRoutes() {
         <BrowserRouter>
             <Routes>
                 <Route path="/registro-alumno" element={<StudentRegisterView />} />
+                <Route path="/registro" element={<StudentRegisterView />} />
+                <Route path="/verificar-correo" element={<EmailVerificationView />} />
                 <Route path="/olvide-contrasena" element={<ForgotPasswordView />} />
                 <Route path="/restablecer-contrasena" element={<ResetPasswordView />} />
                 <Route
@@ -118,10 +123,11 @@ export default function AppRoutes() {
                         }
                     />
 
-                    <Route
-                        path="students/requests"
-                        element={<RoleRoute action="selfSignup:approve"><StudentSignupRequestsView /></RoleRoute>}
-                    />
+                    <Route path="students/requests" element={<Navigate to="/dashboard/staff-requests" replace />} />
+                    <Route path="contact-directory" element={<ContactDirectoryView />} />
+                    <Route path="staff-requests" element={<RoleRoute action="staffSignup:review"><StaffRequestsView /></RoleRoute>} />
+                    <Route path="notice-subscriptions" element={<RoleRoute action="noticeSubscriptions:manage"><NoticeSubscriptionsView /></RoleRoute>} />
+                    <Route path="notice-subscriptions/admin" element={<RoleRoute action="student:enroll"><AdminNoticeSubscriptionsView /></RoleRoute>} />
 
                     <Route
                         path="teachers"
@@ -226,14 +232,7 @@ export default function AppRoutes() {
                         }
                     />
 
-                    <Route
-                        path="assignments/students"
-                        element={
-                            <RoleRoute action="student:enroll">
-                                <StudentCourseAssignmentsView />
-                            </RoleRoute>
-                        }
-                    />
+                    <Route path="assignments/students" element={<Navigate to="/dashboard/notice-subscriptions/admin" replace />} />
 
                     <Route
                         path="assignments/teachers"

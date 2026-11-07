@@ -28,30 +28,45 @@ async function loadCourse(tx, id, requester) {
   return course;
 }
 async function getImpact(tx, courseId) {
-  const [students, assignments, schedules, notices, invitations, eventLinks] = await Promise.all([
-    tx.studentCourse.findMany({ where: { courseId }, include: { student: { include: { user: { select: { id: true, firstName: true, lastName: true, isSuperAdmin: true, directorProfile: true, teacherProfile: true, preceptorProfile: true } } } } } }),
+  // Contemplar alumnos antiguos (StudentCourse) y nuevos suscriptores por materia.
+  const [students, assignments, schedules, notices, invitations, eventLinks, subscriptionCount] = await Promise.all([
+    tx.studentProfile.findMany({ where: { OR: [
+      { courses: { some: { courseId } } },
+      { noticeSubscriptions: { some: { courseId } } },
+    ] }, include: {
+      user: { select: { id: true, firstName: true, lastName: true, isSuperAdmin: true,
+        directorProfile: true, teacherProfile: true, preceptorProfile: true } },
+      noticeSubscriptions: { select: { courseId: true } },
+      careerMemberships: { select: { careerId: true } },
+      courses: { select: { courseId: true } },
+    } }),
     tx.teacherSubject.count({ where: { courseId } }),
     tx.subjectSchedule.count({ where: { courseId } }),
     tx.earlyNotice.count({ where: { courseId } }),
     tx.invitation.count({ where: { courseId } }),
     tx.institutionEventCourse.count({ where: { courseId } }),
+    tx.studentNoticeSubscription.count({ where: { courseId } }),
   ]);
-  return { students, assignments, schedules, notices, invitations, eventLinks };
+  return { students, assignments, schedules, notices, invitations, eventLinks, subscriptionCount };
+}
+function safeToDeleteAccount(student, course) {
+  const u = student.user;
+  return Boolean(u && !u.isSuperAdmin && !u.directorProfile && !u.teacherProfile && !u.preceptorProfile
+    && !student.noticeSubscriptions.some(s=>s.courseId !== course.id)
+    && !student.courses.some(s=>s.courseId !== course.id)
+    && !student.careerMemberships.some(c=>c.careerId !== course.careerId));
 }
 export async function previewCourseDeletion(id, requester) {
   permitted(requester);
   const prisma = getPrisma();
   const course = await loadCourse(prisma, id, requester);
   const impact = await getImpact(prisma, course.id);
-  const eligible = impact.students.every(s => {
-    const u = s.student?.user;
-    return u && !u.isSuperAdmin && !u.directorProfile && !u.teacherProfile && !u.preceptorProfile;
-  });
+  const eligible = impact.students.every(s => safeToDeleteAccount(s, course));
   return {
     course: { id: course.id, nombre: course.nombre, academicYear: course.academicYear, institutionId: course.institutionId, isActive: course.isActive },
-    counts: { students: impact.students.length, teacherAssignments: impact.assignments, schedules: impact.schedules, earlyNotices: impact.notices, invitations: impact.invitations, institutionalCommunicationLinks: impact.eventLinks },
+    counts: { students: impact.students.length, noticeSubscriptions: impact.subscriptionCount, teacherAssignments: impact.assignments, schedules: impact.schedules, earlyNotices: impact.notices, invitations: impact.invitations, institutionalCommunicationLinks: impact.eventLinks },
     canDeleteStudentAccounts: eligible,
-    warning: 'Borrar el curso elimina relaciones, avisos tempranos y matrículas. Los correos ya enviados no se pueden recuperar ni retirar. Los eventos institucionales compartidos se conservan.',
+    warning: 'Borrar el curso elimina suscripciones a sus materias, avisos y asignaciones del curso. Las cuentas de alumnos con otras carreras o materias no se pueden eliminar desde este curso. Correos ya enviados no se pueden retirar.',
   };
 }
 export async function setCourseActive(id, active, requester) {
@@ -76,9 +91,8 @@ export async function deleteCoursePermanently(id, body, requester) {
       const impact = await getImpact(tx, course.id);
       if (deleteStudents) {
         for (const row of impact.students) {
-          const u = row.student?.user;
-          if (!u || u.isSuperAdmin || u.directorProfile || u.teacherProfile || u.preceptorProfile) {
-            throw new CourseLifecycleError('Hay alumnos con otros perfiles o privilegios; no pueden eliminarse en lote.', 409);
+          if (!safeToDeleteAccount(row, course)) {
+            throw new CourseLifecycleError('Hay alumnos con otras materias, carreras o privilegios. No se eliminarán sus cuentas: primero revisá sus suscripciones en otras carreras.', 409);
           }
         }
       }
@@ -93,13 +107,15 @@ export async function deleteCoursePermanently(id, body, requester) {
       await tx.teacherSubject.deleteMany({ where: { courseId: course.id } });
       await tx.subjectSchedule.deleteMany({ where: { courseId: course.id } });
       await tx.studentCourse.deleteMany({ where: { courseId: course.id } });
+      // StudentNoticeSubscription se limpia por CASCADE cuando se elimina Course.
+      // No borrar StudentCareer: otras materias/carreras siguen vigentes.
       // Snapshot opcional de la etapa de promoción anual.
       if (typeof tx.enrollmentMovement?.deleteMany === 'function') {
         await tx.enrollmentMovement.deleteMany({ where: { OR: [{ sourceCourseId: course.id }, { targetCourseId: course.id }] } });
       }
       if (deleteStudents) {
         for (const row of impact.students) {
-          await deleteAccountTx(tx, row.student.user.id, course.institutionId, { expectedProfileField: 'studentProfile', callerId: Number(requester.id), actorCanDeleteSuperAdmin: hasAdminRole(requester) });
+          await deleteAccountTx(tx, row.user.id, course.institutionId, { expectedProfileField: 'studentProfile', callerId: Number(requester.id), actorCanDeleteSuperAdmin: hasAdminRole(requester) });
         }
       }
       await tx.course.delete({ where: { id: course.id } });

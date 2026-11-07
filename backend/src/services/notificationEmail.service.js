@@ -1,7 +1,7 @@
 import { notificationEmailRepository as repo } from '../repositories/notificationEmail.repository.js';
 import { sendEarlyNoticeEmail, sendInstitutionCommunicationEmail } from '../utils/mailer.js';
 
-const INTERVAL_MS = 30_000;
+const INTERVAL_MS = 15_000;
 let timer = null;
 let processing = false;
 
@@ -9,28 +9,29 @@ export const processPendingNotificationEmails = async () => {
   if (processing) return;
   processing = true;
   try {
-    const pending = await repo.listPending(20);
-    for (const { id } of pending) {
+    const pending = await repo.listPending(60);
+    for (let offset = 0; offset < pending.length; offset += 4) {
+      await Promise.all(pending.slice(offset, offset + 4).map(async ({ id }) => {
       let delivery;
       try {
         delivery = await repo.claim(id);
-        if (!delivery) continue;
+        if (!delivery) return;
         const notification = delivery.notification;
         if (!notification) {
           await repo.cancel(id, 'Notificación inexistente');
-          continue;
+          return;
         }
         let info;
         if (notification.institutionEventId != null) {
           const event = notification.institutionEvent;
           if (!event || event.deletedAt) {
             await repo.cancel(id, 'Comunicación institucional inexistente o eliminada');
-            continue;
+            return;
           }
           // Las cancelaciones deben enviarse aunque isActive sea false.
           if (notification.type !== 'EVENT_CANCELLED' && !event.isActive) {
             await repo.cancel(id, 'Comunicación cancelada antes del envío');
-            continue;
+            return;
           }
           info = await sendInstitutionCommunicationEmail({
             to: delivery.recipient,
@@ -43,7 +44,7 @@ export const processPendingNotificationEmails = async () => {
         } else if (notification.earlyNoticeId != null) {
           if (!notification.earlyNotice?.isActive) {
             await repo.cancel(id, 'Aviso temprano desactivado o inexistente');
-            continue;
+            return;
           }
           info = await sendEarlyNoticeEmail({
             to: delivery.recipient,
@@ -54,7 +55,7 @@ export const processPendingNotificationEmails = async () => {
           });
         } else {
           await repo.cancel(id, 'Notificación sin origen');
-          continue;
+          return;
         }
         // SMTP aceptado no significa necesariamente entregado al buzón.
         await repo.markSent(id, info.messageId);
@@ -69,6 +70,7 @@ export const processPendingNotificationEmails = async () => {
           }
         }
       }
+      }));
     }
   } catch (error) {
     console.error('[Avisos I12][EMAIL] Error consultando entregas:', error);
@@ -83,7 +85,7 @@ export const startNotificationEmailProcessor = () => {
     return;
   }
   if (timer) return;
-  console.info('[Avisos I12][EMAIL] Procesador iniciado (cada 30 segundos)');
+  console.info('[Avisos I12][EMAIL] Procesador iniciado (cada 15 segundos)');
   void processPendingNotificationEmails();
   timer = setInterval(() => void processPendingNotificationEmails(), INTERVAL_MS);
   timer.unref?.();

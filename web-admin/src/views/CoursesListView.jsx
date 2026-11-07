@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useContext, useMemo, useState } from 'react';
 import {
     Plus,
@@ -23,7 +24,6 @@ import {
 import { useInstitutions } from '../hooks/useInstitution';
 
 import CourseFormModal from '../components/CourseFormModal';
-import CourseStudentsManager from '../components/CourseStudentsManager';
 import CourseDeletionModal from '../components/CourseDeletionModal';
 import { SHIFTS, shiftLabel } from '../utils/courseShift';
 
@@ -304,6 +304,10 @@ export default function CoursesListView() {
                 </p>
             )}
 
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                Las suscripciones a avisos no constituyen una matrícula académica. Para gestionar quién recibe los avisos de cada materia, abrí <Link className="font-bold underline" to="/dashboard/notice-subscriptions/admin">Suscripciones de alumnos</Link>. Las asignaciones antiguas de alumnos a cursos se conservan solo como datos de transición.
+            </div>
+
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
                 <table className="w-full text-left text-sm">
                     <thead className="bg-slate-100 text-slate-600">
@@ -382,22 +386,14 @@ export default function CoursesListView() {
 
                                         <td className="px-4 py-3">
                                             <div className="flex flex-wrap justify-end gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggleStudents(course.id)}
-                                                    className={`${buttonClass} ${isSelected
-                                                            ? 'bg-red-700 text-white'
-                                                            : 'border border-red-200 text-red-700 hover:bg-red-50'
-                                                        }`}
+                                                <Link
+                                                    to="/dashboard/notice-subscriptions/admin"
+                                                    title="Gestionar suscripciones a avisos de las materias (no matrícula oficial)"
+                                                    className={`${buttonClass} border border-red-200 text-red-700 hover:bg-red-50`}
                                                 >
                                                     <Users size={16} />
-                                                    Alumnos
-                                                    {isSelected ? (
-                                                        <ChevronUp size={15} />
-                                                    ) : (
-                                                        <ChevronDown size={15} />
-                                                    )}
-                                                </button>
+                                                    Suscripciones
+                                                </Link>
 
                                                 <button
                                                     type="button"
@@ -433,13 +429,6 @@ export default function CoursesListView() {
                     </tbody>
                 </table>
             </div>
-
-            {selectedCourse && (
-                <CourseStudentsManager
-                    key={selectedCourse.id}
-                    course={selectedCourse}
-                />
-            )}
 
             <CourseFormModal
                 open={formOpen}

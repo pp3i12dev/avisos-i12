@@ -10,6 +10,7 @@ import * as userRepository from '../repositories/user.repository.js';
 import { ROLE_CONFIG, getRoleConfig } from '../config/userRoles.js';
 import { getRolesFromUser } from '../utils/rols.js';
 import { getPrisma } from '../config/prisma.js';
+import { validatePreceptorCoverages, legacyShift } from './preceptorCoverage.service.js';
 
 class ServiceError extends Error {
     constructor(message, status = 400) {
@@ -321,22 +322,29 @@ export const createUserService = async (role, body, requester) => {
         throw new ServiceError('No tenés permisos para matricular alumnos.', 403);
     }
 
+    const coverages = role === 'preceptor'
+        ? await validatePreceptorCoverages(getPrisma(), institutionId, rest.coverages) : [];
     const passwordHash = await hashPassword(password);
+    const userData = {
+        dni: String(dni).trim(), email: String(email).trim().toLowerCase(), passwordHash,
+        firstName: String(firstName).trim(), lastName: String(lastName).trim(),
+        telefono: normalizeArgentinePhone(rest.telefono ?? ''), institutionId,
+    };
+    const profileData = role === 'preceptor'
+        ? { ...config.buildProfileCreate(rest), shift: legacyShift(coverages),
+            ...(coverages.length ? { coverages: { create: coverages } } : {}) }
+        : config.buildProfileCreate(rest);
+    const requestedRole = {director:'DIRECTOR',preceptor:'PRECEPTOR',teacher:'TEACHER',student:'STUDENT'}[role];
 
     try {
-        const user = await userRepository.createUserWithProfile({
-            userData: {
-                dni,
-                email,
-                passwordHash,
-                firstName,
-                lastName,
-                telefono: normalizeArgentinePhone(rest.telefono ?? ''),
-                institutionId,
-            },
-            profileField: config.profileField,
-            profileData: config.buildProfileCreate(rest),
-        });
+        const existing = await getPrisma().user.findUnique({where:{email:userData.email},select:{id:true}});
+        // No se valida el correo como verificado: es una ACTIVACIÓN INSTITUCIONAL.
+        // El password previo del solicitante queda reemplazado, y se invalidan sus tokens.
+        const user = existing && role !== 'student'
+            ? await userRepository.activatePendingStaffAccount({
+                userData,profileField:config.profileField,profileData,requestedRole,actorId:requester.id,
+              })
+            : await userRepository.createUserWithProfile({userData,profileField:config.profileField,profileData});
 
         if (role === 'student' && rest.courseId !== undefined) {
             if (!canAnyRole(requester.roles, 'student:enroll')) {
@@ -358,7 +366,7 @@ export const createUserService = async (role, body, requester) => {
     } catch (error) {
         if (error.code === 'P2002') {
             throw new ServiceError(
-                'El email, DNI o legajo ya está en uso',
+                'El email, DNI o legajo ya está en uso. Si hay una solicitud pendiente, el correo, DNI, cargo e institución deben coincidir.',
                 409
             );
         }
@@ -432,6 +440,14 @@ export const updateUserService = async (
         if (rest.confirmInstitutionTransfer !== true) {
             throw new ServiceError('Confirmá expresamente el traslado institucional y la baja de asignaciones y matrículas actuales.', 409);
         }
+    }
+    if (role === 'preceptor' && (rest.coverages !== undefined || changesInstitution)) {
+        // Al trasladar al preceptor se descartan sus coberturas anteriores;
+        // las nuevas siempre deben pertenecer a la institución de destino.
+        const destinationId = changesInstitution ? Number(rest.institutionId) : Number(existingUser.institutionId);
+        const coverages = await validatePreceptorCoverages(getPrisma(), destinationId, rest.coverages);
+        profileData.coverages = { deleteMany: {}, ...(coverages.length ? { create: coverages } : {}) };
+        profileData.shift = legacyShift(coverages);
     }
     if (rest.courseId !== undefined && changesInstitution) {
         throw new ServiceError('Primero trasladá al alumno y luego matriculalo en un curso de la nueva institución.', 400);
@@ -565,7 +581,7 @@ const validateTarget = (target, role, requester) => {
 };
 const convertDeletionError = (error) => {
     if (['P2003','P2014'].includes(error?.code)) return new ServiceError(
-        'La cuenta tiene avisos, asistencias, invitaciones u otros registros institucionales que deben conservarse. No se eliminó ningún dato. Utilizá Desactivar hasta resolver sus relaciones.', 409
+        'La cuenta tiene relaciones adicionales que impiden su eliminación segura. La transacción se revirtió completa: no se eliminó ningún dato. Revisá el error del servidor o utilizá Desactivar.', 409
     );
     return error;
 };

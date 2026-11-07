@@ -73,7 +73,7 @@ export async function listSubscriptions(reqUser) {
   return getPrisma().webPushSubscription.findMany({
     where: { userId: getId(reqUser), disabledAt: null },
     select: { id: true, createdAt: true, updatedAt: true },
-    orderBy: { createdAt: 'desc' }, take: 30,
+    orderBy: { createdAt: 'desc' }, take: 60,
   });
 }
 
@@ -83,7 +83,7 @@ export async function enqueueWebPushForNotification(tx, userId, notificationId) 
   // si el nuevo módulo aún no está habilitado y migrado.
   if (process.env.WEB_PUSH_ENABLED !== 'true') return;
   const devices = await tx.webPushSubscription.findMany({
-    where: { userId, disabledAt: null }, select: { id: true }, take: 30,
+    where: { userId, disabledAt: null }, select: { id: true }, take: 60,
   });
   if (!devices.length) return;
   await tx.webPushDelivery.createMany({
@@ -131,7 +131,7 @@ export async function sendTestWebPush(reqUser, endpoint) {
     }, JSON.stringify({
       title: 'Avisos I12 · Notificación de prueba',
       body: '¡Listo! Tu navegador recibió una prueba. Los avisos escolares usarán este mismo canal.',
-      url: '/dashboard', tag: `avisos-i12-test-${now}`,
+      url: '/dashboard', tag: `eduquest-test-${now}`,
     }), { TTL: 300 });
     return { accepted: true, message: 'El servicio Push aceptó el mensaje. Comprobá las notificaciones del dispositivo.' };
   } catch (error) {
@@ -145,10 +145,11 @@ export async function sendTestWebPush(reqUser, endpoint) {
 // Jamás incluir DNI, motivo médico u otros datos sensibles en pantalla bloqueada.
 export function pushPreview(notification) {
   const type = notification.type;
+  if (type === 'STAFF_REGISTRATION_REQUEST') return { title: 'Avisos I12 · Nueva solicitud de personal', body: notification.message, url: '/dashboard/staff-requests' };
   if (type === 'STUDENT_REGISTRATION_REQUEST') return {
-    title: 'Avisos I12 · Nueva inscripción pendiente',
-    body: 'Una solicitud de alumno necesita revisión institucional. Entrá a Gestión de usuarios.',
-    url: '/dashboard/students/requests',
+    title: 'Avisos I12 · Nueva solicitud pendiente',
+    body: 'Una solicitud de personal necesita aprobación institucional. Entrá a Gestión de usuarios.',
+    url: '/dashboard/staff-requests',
   };
   if (type === 'EARLY_NOTICE_PENDING') return {
     title: 'Avisos I12 · Aviso PROVISIONAL',
@@ -207,21 +208,22 @@ export async function processWebPushQueue() {
     });
     const candidates = await db.webPushDelivery.findMany({
       where: { status: 'PENDING', attempts: { lt: 3 } },
-      select: { id: true }, orderBy: { createdAt: 'asc' }, take: 30,
+      select: { id: true }, orderBy: { createdAt: 'asc' }, take: 60,
     });
-    for (const { id } of candidates) {
+    for (let offset = 0; offset < candidates.length; offset += 6) {
+      await Promise.all(candidates.slice(offset, offset + 6).map(async ({ id }) => {
       const claim = await db.webPushDelivery.updateMany({
         where: { id, status: 'PENDING', attempts: { lt: 3 } },
         data: { status: 'PROCESSING', attempts: { increment: 1 } },
       });
-      if (!claim.count) continue;
+      if (!claim.count) return;
       try {
         const delivery = await db.webPushDelivery.findUnique({
           where: { id }, include: { subscription: true, notification: true },
         });
         if (!delivery || delivery.subscription.disabledAt || await isObsolete(db, delivery.notification)) {
           await db.webPushDelivery.update({ where: { id }, data: { status: 'CANCELLED' } });
-          continue;
+          return;
         }
         const msg = pushPreview(delivery.notification);
         const result = await webpush.sendNotification({
@@ -241,6 +243,7 @@ export async function processWebPushQueue() {
         } });
         console.error('[Avisos I12][PUSH] Entrega fallida', id, status || error.message);
       }
+      }));
     }
   } catch (error) { console.error('[Avisos I12][PUSH] Error de procesador', error); }
   finally { running = false; }
@@ -252,7 +255,7 @@ export function startWebPushProcessor() {
   if (!webPushConfigured()) { console.warn('[Avisos I12][PUSH] Faltan credenciales VAPID válidas'); return; }
   if (interval) return;
   void processWebPushQueue();
-  interval = setInterval(() => void processWebPushQueue(), 15000);
+  interval = setInterval(() => void processWebPushQueue(), 10000);
   interval.unref?.();
 }
 export const publicVapidKey = () => webPushConfigured() ? process.env.WEB_PUSH_PUBLIC_KEY : null;

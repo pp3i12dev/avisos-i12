@@ -1,0 +1,14 @@
+// Asignación administrativa informativa: una carrera + un turno por fila.
+// No concede permisos adicionales ni realiza matrículas oficiales.
+model PreceptorCoverage {
+  id Int @id @default(autoincrement())
+  preceptorId Int
+  preceptor PreceptorProfile @relation(fields: [preceptorId], references: [id], onDelete: Cascade)
+  careerId Int
+  career Career @relation(fields: [careerId], references: [id], onDelete: Cascade)
+  shift Shift
+  createdAt DateTime @default(now())
+
+  @@unique([preceptorId, careerId, shift])
+  @@index([careerId, shift])
+}

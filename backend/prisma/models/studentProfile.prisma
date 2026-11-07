@@ -6,6 +6,8 @@ model StudentProfile {
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  careerMemberships StudentCareer[]
+  noticeSubscriptions StudentNoticeSubscription[]
   courses      StudentCourse[]
   attendances  Attendance[]
   enrollmentMovements EnrollmentMovement[]

@@ -17,6 +17,7 @@ import {
 
 import { AuthContext } from '../context/AuthContext';
 import WebPushSettings from '../components/WebPushSettings';
+import ContactPrivacySettings from '../components/ContactPrivacySettings';
 
 const API_BASE_URL = (
     import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
@@ -474,22 +475,27 @@ export default function ProfileView() {
     return (
         <div className="mx-auto max-w-6xl space-y-6 pb-10">
 
-            {/* ENCABEZADO DEL PERFIL */}
-            <div className="overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/95 shadow-xl">
-                <div className="h-24 bg-gradient-to-r from-blue-900 via-slate-800 to-cyan-900 sm:h-32" />
+            {/* ENCABEZADO DEL PERFIL: superficie blanca para respetar el tema claro.
+                El nombre nunca se superpone a la banda roja y conserva alto contraste. */}
+            <div className="overflow-hidden rounded-2xl border border-[#DCE1E7] bg-white shadow-xl shadow-slate-900/10">
+                <div className="h-24 bg-gradient-to-r from-[#951010] via-[#C61515] to-[#672128] sm:h-28" />
 
                 <div className="px-5 pb-6 sm:px-8">
-                    <div className="-mt-10 flex flex-col gap-4 sm:flex-row sm:items-end">
-                        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-4 border-slate-900 bg-blue-600 text-2xl font-bold text-white shadow-lg">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+                        <div
+                            className="-mt-8 flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-[#C61515] text-2xl font-bold shadow-lg sm:-mt-9"
+                            style={{ color: '#FFFFFF' }}
+                            aria-hidden="true"
+                        >
                             {initials}
                         </div>
 
-                        <div className="min-w-0 flex-1 sm:pb-1">
-                            <h1 className="break-words text-2xl font-bold text-white">
+                        <div className="min-w-0 flex-1 pt-1 sm:pt-4">
+                            <h1 className="break-words text-2xl font-bold leading-tight text-[#20242B] sm:text-[28px]">
                                 {fullName || user?.firstName || 'Mi perfil'}
                             </h1>
 
-                            <p className="mt-1 break-all text-sm text-slate-400">
+                            <p className="mt-1 break-all text-sm text-[#64748B]">
                                 {profile.email}
                             </p>
                         </div>
@@ -499,7 +505,7 @@ export default function ProfileView() {
                         {roles.map(role => (
                             <span
                                 key={role}
-                                className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-300"
+                                className="rounded-lg border border-[#F2C3C3] bg-[#FFF1F1] px-3 py-1 text-xs font-semibold text-[#9F1111]"
                             >
                                 {ROLE_LABELS[role] || role}
                             </span>
@@ -833,6 +839,7 @@ export default function ProfileView() {
                     </button>
                 </form>
             </section>
+            <div className="lg:col-span-5"><ContactPrivacySettings /></div>
         </div>
     );
 }

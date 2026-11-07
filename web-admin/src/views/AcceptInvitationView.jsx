@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, LoaderCircle, MailCheck, ShieldCheck, UserPlus } from 'lucide-react';
 import api from '../api/axios';
 import logo from '../assets/images/i12-logo.png';
-import { courseLabel } from '../utils/courseShift';
+import PreceptorCoveragePicker from '../components/PreceptorCoveragePicker';
 
 const ROLE_LABELS = {
   DIRECTOR: 'Directivo/a',
@@ -13,7 +13,7 @@ const ROLE_LABELS = {
 };
 const empty = {
   firstName: '', lastName: '', dni: '', telefono: '', password: '', repeatPassword: '',
-  legajo: '', specialty: '', shift: '', position: '', careerId: '', courseId: '',
+  legajo: '', specialty: '', shift: '', position: '', careerId: '', courseId: '', coverages: [],
 };
 const fieldStyle = 'mt-1.5 w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-3 text-sm text-slate-900 placeholder:text-slate-500 outline-none transition focus:border-[#C61515] focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-slate-100';
 
@@ -39,8 +39,6 @@ export default function AcceptInvitationView() {
   const navigate = useNavigate();
   const [invitation, setInvitation] = useState(null);
   const [values, setValues] = useState(empty);
-  const [careers, setCareers] = useState([]);
-  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [error, setError] = useState('');
@@ -53,30 +51,11 @@ export default function AcceptInvitationView() {
       .then(({ data }) => {
         if (!alive) return;
         setInvitation(data);
-        if (data.course) setValues(v => ({ ...v, careerId: data.course.careerId == null ? 'none' : String(data.course.careerId), courseId: String(data.course.id) }));
       })
       .catch(e => { if (alive) setLoadError(e.response?.data?.message || 'No se pudo validar el enlace.'); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [token]);
-
-  useEffect(() => {
-    if (!invitation || invitation.role !== 'STUDENT') return;
-    let alive = true;
-    api.get(`/public/institutions/${invitation.institution.id}/careers`)
-      .then(({ data }) => { if (alive) setCareers(Array.isArray(data) ? data : []); })
-      .catch(() => { if (alive) setLoadError('No se pudieron cargar las carreras.'); });
-    return () => { alive = false; };
-  }, [invitation]);
-
-  useEffect(() => {
-    if (!invitation || invitation.role !== 'STUDENT' || !values.careerId) return;
-    let alive = true;
-    api.get(`/public/institutions/${invitation.institution.id}/courses`, { params: { careerId: values.careerId } })
-      .then(({ data }) => { if (alive) setCourses(Array.isArray(data) ? data : []); })
-      .catch(() => { if (alive) setLoadError('No se pudieron cargar los cursos de la carrera.'); });
-    return () => { alive = false; };
-  }, [invitation, values.careerId]);
 
   const field = e => {
     const { name, value } = e.target;
@@ -88,7 +67,6 @@ export default function AcceptInvitationView() {
     setError('');
     if (values.password !== values.repeatPassword) return setError('Las contraseñas no coinciden.');
     if (values.password.length < 8) return setError('La contraseña debe tener al menos 8 caracteres.');
-    if (invitation.role === 'STUDENT' && !values.courseId) return setError('Seleccioná carrera y curso.');
     setSaving(true);
     try {
       const { repeatPassword, ...data } = values;
@@ -106,7 +84,6 @@ export default function AcceptInvitationView() {
   </MessageScreen>;
 
   const student = invitation.role === 'STUDENT';
-  const presetCourse = Boolean(invitation.course);
   return <main className="min-h-screen bg-[#F7F7F8] px-4 py-8 sm:py-12 text-slate-900">
     <div className="mx-auto w-full max-w-3xl">
       <button type="button" onClick={() => navigate('/login')} className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-[#C61515] hover:underline"><ArrowLeft size={18} /> Volver al inicio de sesión</button>
@@ -132,7 +109,7 @@ export default function AcceptInvitationView() {
               <Input label="Nombre" name="firstName" value={values.firstName} onChange={field} autoComplete="given-name" maxLength={100} />
               <Input label="Apellido" name="lastName" value={values.lastName} onChange={field} autoComplete="family-name" maxLength={100} />
               <Input label="DNI" name="dni" value={values.dni} onChange={field} inputMode="numeric" pattern="[0-9]{7,9}" maxLength={9} />
-              <Input label="Teléfono (opcional)" name="telefono" type="tel" value={values.telefono} onChange={field} autoComplete="tel" maxLength={35} required={false} />
+              <Input label="Teléfono móvil (opcional)" name="telefono" type="tel" value={values.telefono} onChange={field} autoComplete="tel" maxLength={35} required={false} />
               <Input label="Contraseña" name="password" type="password" value={values.password} onChange={field} autoComplete="new-password" minLength={8} />
               <Input label="Repetí la contraseña" name="repeatPassword" type="password" value={values.repeatPassword} onChange={field} autoComplete="new-password" minLength={8} />
             </div>
@@ -143,33 +120,18 @@ export default function AcceptInvitationView() {
               <input className={fieldStyle} value={invitation.institution?.nombre || ''} disabled readOnly />
             </label>
             {invitation.role === 'DIRECTOR' && <Input label="Cargo (opcional)" name="position" value={values.position} onChange={field} required={false} placeholder="Ej.: Directora" maxLength={100} />}
-            {invitation.role === 'PRECEPTOR' && <div className="grid gap-4 sm:grid-cols-2">
+            {invitation.role === 'PRECEPTOR' && <div className="space-y-4">
               <Input label="Legajo de preceptor" name="legajo" value={values.legajo} onChange={field} maxLength={60} />
-              <label className="block text-sm font-medium text-slate-700">Turno (opcional)
-                <select className={fieldStyle} name="shift" value={values.shift} onChange={field}><option value="">Sin especificar</option><option value="MANANA">Mañana</option><option value="TARDE">Tarde</option><option value="NOCHE">Noche</option></select>
-              </label>
+              <PreceptorCoveragePicker institutionId={invitation.institution?.id} value={values.coverages} onChange={coverages => setValues(prev => ({ ...prev, coverages }))} disabled={saving} />
             </div>}
             {invitation.role === 'TEACHER' && <div className="grid gap-4 sm:grid-cols-2">
               <Input label="Legajo de docente" name="legajo" value={values.legajo} onChange={field} maxLength={60} />
               <Input label="Especialidad (opcional)" name="specialty" value={values.specialty} onChange={field} required={false} maxLength={150} />
             </div>}
-            {student && <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-medium text-slate-700">Carrera <span className="text-red-600">*</span>
-                <select className={fieldStyle} name="careerId" value={values.careerId} onChange={field} disabled={presetCourse} required>
-                  <option value="">Seleccioná una carrera</option>
-                  {careers.map(c => <option key={c.id} value={String(c.id)}>{c.nombre}</option>)}
-                  <option value="none">Cursos sin carrera asignada</option>
-                </select>
-              </label>
-              <label className="block text-sm font-medium text-slate-700">Curso <span className="text-red-600">*</span>
-                <select className={fieldStyle} name="courseId" value={values.courseId} onChange={field} disabled={presetCourse || !values.careerId} required>
-                  <option value="">Seleccioná un curso</option>
-                  {courses.map(c => <option key={c.id} value={String(c.id)}>{courseLabel(c)}</option>)}
-                  {presetCourse && !courses.some(c => c.id === invitation.course.id) && <option value={String(invitation.course.id)}>{courseLabel(invitation.course)}</option>}
-                </select>
-              </label>
-              <div className="sm:col-span-2"><Input label="Legajo (opcional)" name="legajo" value={values.legajo} onChange={field} required={false} placeholder="Se generará automáticamente si no tenés legajo" /></div>
-              {presetCourse && <p className="sm:col-span-2 text-sm text-slate-600">El curso fue asignado por quien envió la invitación.</p>}
+            {student && <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <Input label="Legajo de alumno (opcional)" name="legajo" value={values.legajo} onChange={field} required={false} placeholder="Se generará uno interno si no lo conocés" />
+              <p className="text-sm leading-6 text-slate-700">Al activar la cuenta podrás seguir avisos de materias de una o varias carreras, años y turnos. <strong>Suscribirte no te inscribe oficialmente a cursar.</strong></p>
+              {invitation.course && <p className="text-xs text-slate-600">Curso de referencia indicado por quien te invitó: {invitation.course.nombre}. No limita tus futuras suscripciones.</p>}
             </div>}
           </section>
           <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-slate-700">

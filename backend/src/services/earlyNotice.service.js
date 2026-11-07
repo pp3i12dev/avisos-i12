@@ -1,5 +1,5 @@
 import { notificationService } from './notification.service.js';
-import { requireCurrentOrFutureDate } from '../utils/institutionDate.js';
+import { requireCurrentOrFutureDate, requireFutureClassStart } from '../utils/institutionDate.js';
 
 import { earlyNoticeRepository as repo, createNoticeWithClasses } from '../repositories/earlyNotice.repository.js';
 
@@ -270,6 +270,8 @@ const validateAssignment = async (
         );
     }
 
+    if (assignment.course?.isActive === false) fail(409, 'El curso fue desactivado y no admite nuevos avisos.');
+
     if (!assignment.subject?.isActive) {
         fail(
             409,
@@ -290,7 +292,7 @@ const validateAssignment = async (
     checkInstitution(user, institutionId);
     // Evita que una directora/superadmin asignada al I12 cree un aviso
     // de otro instituto por manipulación del payload.
-    if (user.institutionId && user.institutionId !== institutionId) {
+    if (!user.isSuperAdmin && user.institutionId && user.institutionId !== institutionId) {
         fail(403, 'La asignación corresponde a otra institución');
     }
 
@@ -345,6 +347,7 @@ const validateAssignment = async (
     const date = parseDate(classDate);
     // También se aplica a avisos múltiples y al editor de clases afectadas.
     requireCurrentOrFutureDate(classDate, 'La fecha de la clase');
+    requireFutureClassStart(classDate, schedule.startTime, 'La clase seleccionada');
 
     if (DAYS[date.getUTCDay()] !== schedule.day) {
         fail(
@@ -447,6 +450,10 @@ export const earlyNoticeService = {
             startTime: first.startTime, endTime: first.endTime,
             ...(status === 'CONFIRMED' ? { confirmedById: user.id, confirmedAt: new Date() } : {}),
         };
+        // Revalidar inmediatamente antes de persistir: la captura de muchas
+        // clases puede cruzar un cambio de minuto durante las consultas.
+        const atSave = new Date();
+        for (const row of classes) requireFutureClassStart(row.classDate.toISOString().slice(0,10), row.startTime, 'La clase seleccionada', atSave);
         const notice = await createNoticeWithClasses(data, classes, user.id);
         await notificationService.safePublish(notice);
         return { ...notice, affectedClasses: classes, revision: 1 };
@@ -515,6 +522,8 @@ export const earlyNoticeService = {
             status: newStatus, updatedById: user.id,
             ...(newStatus === 'PENDING' ? { confirmedAt: null, confirmedById: null, rejectedAt: null, rejectionReason: null } : {}),
         };
+        const atSave = new Date();
+        for (const row of classes) requireFutureClassStart(row.classDate.toISOString().slice(0,10), row.startTime, 'La clase seleccionada', atSave);
         const { notice: updated, version } = await repo.replaceClassesWithRevision(notice.id, data, classes, user.id);
         await notificationService.safePublish(updated, { event: 'UPDATED', revision: version });
         return updated;
@@ -573,7 +582,7 @@ export const earlyNoticeService = {
         return repo.listCreationOptions({
             // Para Avisos I12, las autoridades trabajan sobre su institución.
             // Un superadmin sin institución mantiene la consulta global.
-            institutionId: user.institutionId ?? null,
+            institutionId: user.isSuperAdmin ? null : user.institutionId,
             teacherProfileId,
         });
     },
@@ -629,12 +638,16 @@ export const earlyNoticeService = {
         }
 
         if (isStudentOnly(user)) {
-            // Visibilidad limitada a cursos propios; los estados se muestran
-            // claramente para no confundir un pendiente con una confirmación.
-            where.OR = [
-                { course: { students: { some: { student: { userId: user.id } } } } },
-                { affectedClasses: { some: { teacherSubject: { course: { students: { some: { student: { userId: user.id } } } } } } } },
-            ];
+            // Solo materias/comisiones a las que el alumno se suscribió.
+            // Incluye la fila histórica principal de avisos sin clases afectadas.
+            const pairs = await repo.findNoticeSubscriptionsForUser(user.id);
+            where.OR = pairs.flatMap(pair => [
+                { courseId: pair.courseId, subjectId: pair.subjectId },
+                { affectedClasses: { some: { teacherSubject: {
+                    courseId: pair.courseId, subjectId: pair.subjectId,
+                } } } },
+            ]);
+            if (!where.OR.length) where.id = -1;
         }
 
         if (query.courseId) {
@@ -713,12 +726,14 @@ export const earlyNoticeService = {
         // Los avisos desactivados siguen siendo consultables en el historial,
         // respetando los permisos de rol y la visibilidad del alumnado.
 
-        if (
-            isStudentOnly(user) &&
-            (!(await repo.isStudentEnrolled(notice.courseId, user.id)) &&
-                !(await Promise.all((notice.classes || []).map((c) => repo.isStudentEnrolled(c.teacherSubject.course.id, user.id)))).some(Boolean))
-        ) {
-            fail(404, 'Aviso no encontrado');
+        if (isStudentOnly(user)) {
+            const pairs = await repo.findNoticeSubscriptionsForUser(user.id);
+            const allowed = new Set(pairs.map(p => `${p.courseId}:${p.subjectId}`));
+            const original = allowed.has(`${notice.courseId}:${notice.subjectId}`);
+            const affected = (notice.classes || []).some(c =>
+                allowed.has(`${c.teacherSubject?.courseId ?? c.teacherSubject?.course?.id}:${c.teacherSubject?.subjectId ?? c.teacherSubject?.subject?.id}`)
+            );
+            if (!original && !affected) fail(404, 'Aviso no encontrado');
         }
 
         return notice;

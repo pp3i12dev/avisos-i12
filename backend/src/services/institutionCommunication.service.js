@@ -1,4 +1,4 @@
-import { requireCurrentOrFutureDate } from '../utils/institutionDate.js';
+import { requireFutureInstant } from '../utils/institutionDate.js';
 import { institutionCommunicationRepository as repo } from '../repositories/institutionCommunication.repository.js';
 
 const fail = (message, status = 400) => { const e = new Error(message); e.status = status; throw e; };
@@ -25,7 +25,7 @@ const institution = (user, id) => {
   return resolved;
 };
 const date = (value, name) => {
-  if (typeof value !== 'string' || !/\d{4}-\d\d-\d\dT\d\d:\d\d/.test(value)) fail(`${name} requiere fecha y hora ISO`);
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) fail(`${name} requiere fecha y hora ISO con zona horaria`);
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) fail(`${name} inválida`);
   return parsed;
@@ -36,12 +36,11 @@ const userRoles = u => [
 ].filter(Boolean);
 const scopeMatches = (user, scope, careerIds, courseIds) => {
   if (scope === 'INSTITUTION') return true;
-  const enrollment = [
-    ...(user.studentProfile?.courses || []),
-    ...(user.teacherProfile?.teacherSubjects || []),
-  ];
-  if (scope === 'COURSES') return enrollment.some(r => courseIds.includes(r.courseId));
-  return enrollment.some(r => careerIds.includes(r.course?.careerId));
+  const subscriptions = user.studentProfile?.noticeSubscriptions || [];
+  const teaching = user.teacherProfile?.teacherSubjects || [];
+  if (scope === 'COURSES') return [...subscriptions, ...teaching].some(r => courseIds.includes(r.courseId));
+  const belongsToCareer = (user.studentProfile?.careerMemberships || []).some(m => careerIds.includes(m.careerId));
+  return belongsToCareer || [...subscriptions, ...teaching].some(r => careerIds.includes(r.course?.careerId));
 };
 const audience = (members, data) => members.filter(u =>
   data.roles.some(r => userRoles(u).includes(r)) && scopeMatches(u, data.scope, data.careerIds, data.courseIds)
@@ -69,8 +68,8 @@ const normalize = async (body, user, current) => {
   // Una edición también publica notificaciones nuevas. Nunca se publican
   // comunicaciones con fecha anterior a hoy, aunque la fecha original no cambie.
   // Los eventos antiguos continúan disponibles en Historial (solo lectura).
-  requireCurrentOrFutureDate(startsAt, 'La fecha de inicio');
-  if (startsAt > endsAt) fail('El fin no puede ser anterior al inicio');
+  requireFutureInstant(startsAt, 'El inicio de la comunicación');
+  if (endsAt <= startsAt) fail('La fecha y hora de finalización deben ser posteriores al inicio.');
   const scope = body.scope;
   if (!['INSTITUTION', 'CAREERS', 'COURSES'].includes(scope)) fail('Alcance inválido');
   const roles = uniqueEnum(body.roles, allowedRoles, 'Roles', true);

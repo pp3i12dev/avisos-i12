@@ -1,7 +1,7 @@
 
 export const FRONTEND_PERMISSIONS = {
     'teacher:manage': ['DIRECTOR', 'PRECEPTOR'],
-    'preceptor:manage': ['DIRECTOR'],
+    'preceptor:manage': ['DIRECTOR', 'PRECEPTOR'],
     'director:manage': ['DIRECTOR'],
 
     'student:manage': ['DIRECTOR', 'PRECEPTOR'],
@@ -9,6 +9,8 @@ export const FRONTEND_PERMISSIONS = {
 
     'student:enroll': ['DIRECTOR', 'PRECEPTOR'],
     'selfSignup:approve': ['DIRECTOR', 'PRECEPTOR'],
+    'staffSignup:review': ['DIRECTOR', 'PRECEPTOR'],
+    'noticeSubscriptions:manage': ['STUDENT'],
     'teacher:assignSubject': ['DIRECTOR', 'PRECEPTOR'],
     'schedule:manage': ['DIRECTOR', 'PRECEPTOR'],
 

@@ -39,7 +39,9 @@ model Career {
   institutionId Int
   institution Institution @relation(fields: [institutionId], references: [id])
   courses Course[]
+  studentMemberships StudentCareer[]
   institutionEvents InstitutionEventCareer[]
+  preceptorCoverages PreceptorCoverage[]
 }
 
 model Course {
@@ -47,6 +49,8 @@ model Course {
   id Int @id @default(autoincrement())
   nombre String
   academicYear Int @default(2026)
+  // Año del plan/carrera (distinto del año calendario). Se completa al editar el curso.
+  level Int?
   // Turno de pertenencia del curso. Nullable únicamente para no alterar cursos antiguos;
   // las altas nuevas deben enviarlo obligatoriamente.
   shift Shift?
@@ -56,6 +60,7 @@ model Course {
   careerId Int?
   career Career? @relation(fields: [careerId], references: [id])
   students StudentCourse[]
+  noticeSubscriptions StudentNoticeSubscription[]
   teachers TeacherSubject[]
   schedules SubjectSchedule[]
   invitations Invitation[]
@@ -75,6 +80,7 @@ model Subject {
   institutionId Int
   institution Institution @relation(fields: [institutionId], references: [id])
   teachers TeacherSubject[]
+  noticeSubscriptions StudentNoticeSubscription[]
   schedules SubjectSchedule[]
   earlyNotices EarlyNotice[]
   @@index([deletedAt])

@@ -5,7 +5,7 @@ import { getRolesFromUser } from '../utils/rols.js';
 
 import * as userRepository from '../repositories/user.repository.js';
 import * as academicRepository from '../repositories/academic.repository.js';
-import { safeQueueSignupForAuthorities } from './studentSignup.service.js';
+import { registerPublicAccount } from './publicRegistration.service.js';
 
 class ServiceError extends Error {
     constructor(message, status = 400) {
@@ -51,7 +51,7 @@ export const loginService = async ({ email, dni, password }) => {
         const message = user.signupStatus === 'REJECTED'
             ? 'Tu solicitud fue rechazada. Contactá a tu institución para consultar.'
             : user.signupStatus === 'PENDING'
-              ? 'Tu inscripción está pendiente de aprobación institucional.'
+              ? user.studentProfile ? 'Verificá tu correo para activar tu cuenta.' : 'Tu solicitud de personal está pendiente de aprobación institucional.'
               : 'Tu cuenta está desactivada. Contactá a tu institución.';
         throw new ServiceError(message, 403);
     }
@@ -92,112 +92,7 @@ export const loginService = async ({ email, dni, password }) => {
 
 
 
-export const registerStudentService = async (data) => {
-    const {
-        dni,
-        email,
-        password,
-        firstName,
-        lastName,
-        telefono,
-        careerId,
-        institutionId,
-        courseId,
-    } = data;
-
-    if (
-        !dni ||
-        !email ||
-        !password ||
-        !firstName ||
-        !lastName ||
-        !institutionId ||
-        !courseId
-    ) {
-        throw new ServiceError(
-            'Faltan campos obligatorios',
-            400
-        );
-    }
-
-    if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
-        throw new ServiceError('La contraseña debe tener entre 8 y 128 caracteres', 400);
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
-        throw new ServiceError('Ingresá un correo electrónico válido', 400);
-    }
-
-    const course =
-        await academicRepository.findCourseInInstitution(
-            Number(courseId),
-            Number(institutionId)
-        );
-
-    if (!course) {
-        throw new ServiceError(
-            'El curso indicado no pertenece a esa institución',
-            400
-        );
-    }
-
-    if (careerId != null && course.careerId !== Number(careerId)) {
-        throw new ServiceError('El curso no pertenece a la carrera seleccionada', 400);
-    }
-    // Mensaje amigable antes de intentar insertar. Sigue siendo necesario capturar P2002,
-    // porque dos solicitudes simultáneas podrían pasar esta comprobación a la vez.
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const normalizedDni = String(dni).trim();
-    if (!normalizedEmail || !normalizedDni) {
-        throw new ServiceError('Completá un correo electrónico y DNI válidos.', 400);
-    }
-
-    const existingEmail = await userRepository.findUserByEmailOrDni({ email: normalizedEmail });
-    if (existingEmail) {
-        throw new ServiceError('El correo electrónico ya está registrado. Iniciá sesión, recuperá tu contraseña o consultá la aprobación de tu cuenta con la institución.', 409);
-    }
-    const existingDni = await userRepository.findUserByEmailOrDni({ dni: normalizedDni });
-    if (existingDni) {
-        throw new ServiceError('El DNI ya está registrado. Si es tu cuenta, intentá iniciar sesión o contactá a la institución.', 409);
-    }
-
-    const passwordHash = await hashPassword(password);
-
-    let user;
-    try {
-        user = await userRepository.createStudentSelfSignup({
-            userData: {
-                dni: normalizedDni,
-                email: normalizedEmail,
-                passwordHash,
-                firstName,
-                lastName,
-                telefono: typeof telefono === 'string' && telefono.trim() ? telefono.trim() : null,
-                institutionId: Number(institutionId),
-            },
-            courseId: Number(courseId),
-        });
-    } catch (error) {
-        if (error?.code !== 'P2002') throw error;
-        // Prisma 7 + adaptador Neon no siempre informa meta.target.
-        // Revisamos ambas claves tras la colisión, sin revelar el stack de Prisma.
-        const byEmail = await userRepository.findUserByEmailOrDni({ email: normalizedEmail });
-        if (byEmail) {
-            throw new ServiceError('El correo electrónico ya está registrado. Iniciá sesión o recuperá la contraseña. Si tu cuenta está pendiente, contactá a la institución.', 409);
-        }
-        const byDni = await userRepository.findUserByEmailOrDni({ dni: normalizedDni });
-        if (byDni) {
-            throw new ServiceError('El DNI ya está registrado. Contactá a la institución si necesitás recuperar tu cuenta.', 409);
-        }
-        throw new ServiceError('Ya existe un registro con alguno de los datos ingresados. Revisá correo y DNI.', 409);
-    }
-
-    await safeQueueSignupForAuthorities({
-        studentUserId: user.id,
-        institutionId: user.institutionId,
-    });
-    return {
-        message:
-            'Registro exitoso. Tu cuenta queda pendiente de aprobación por la institución.',
-        userId: user.id,
-    };
-};
+// El registro de alumnos se activa tras verificar el email, sin revisión administrativa.
+export const registerStudentService = data => registerPublicAccount(data, 'STUDENT');
+// Las solicitudes públicas de personal permanecen sin roles hasta su aprobación.
+export const registerStaffService = data => registerPublicAccount(data, data?.role);

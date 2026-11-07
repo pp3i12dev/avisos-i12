@@ -5,6 +5,7 @@ import { sendInvitationEmail } from '../utils/mailer.js';
 import { canAnyRole, INVITATION_TARGET_PERMISSION } from '../config/permissions.js';
 import * as invitationRepository from '../repositories/invitation.repository.js';
 import * as academicRepository from '../repositories/academic.repository.js';
+import { validatePreceptorCoverages, legacyShift } from './preceptorCoverage.service.js';
 
 class ServiceError extends Error {
     constructor(message, status = 400) {
@@ -29,7 +30,7 @@ export const listInvitationsService = async (requester) => {
         : invitationRepository.findInvitationsByInstitution(requester.institutionId);
 };
 
-export const createInvitationService = async ({ email, role, courseId }, requester) => {
+export const createInvitationService = async ({ email, role, courseId, institutionId: selectedInstitutionId }, requester) => {
     if (!email || !role) throw new ServiceError('Faltan campos obligatorios', 400);
 
     const permissionKey = INVITATION_TARGET_PERMISSION[role];
@@ -38,20 +39,31 @@ export const createInvitationService = async ({ email, role, courseId }, request
         throw new ServiceError('No tenés permisos para esta acción', 403);
     }
 
+    const superAdmin = requester.isSuperAdmin === true || requester.roles?.includes('SUPER_ADMIN');
+    const institutionId = superAdmin ? Number(selectedInstitutionId) : Number(requester.institutionId);
+    if (!Number.isSafeInteger(institutionId) || institutionId <= 0) throw new ServiceError('Seleccioná una institución válida.', 400);
+    if (!superAdmin && selectedInstitutionId && Number(selectedInstitutionId) !== institutionId) throw new ServiceError('No podés invitar a otra institución.', 403);
+    const exists = await getPrisma().institution.findFirst({ where: { id: institutionId, isActive: true }, select: { id: true } });
+    if (!exists) throw new ServiceError('Institución no disponible.', 404);
     let resolvedCourseId = null;
     if (role === 'STUDENT' && isOnlyTeacher(requester.roles)) {
-        if (!courseId) throw new ServiceError('Debés indicar a qué curso invitás al alumno', 400);
-        const teacherProfile = await academicRepository.findTeacherProfileByUserId(requester.id);
-        const assignment = await academicRepository.findTeacherAssignment(teacherProfile.id, Number(courseId));
-        if (!assignment) throw new ServiceError('Ese curso no está asignado a tu perfil docente', 403);
-        resolvedCourseId = Number(courseId);
+        // El alumno se registra para seguir avisos, no para matricularse en un curso.
+        // Si el docente sugiere un curso de referencia, validamos que lo dicte;
+        // de lo contrario, la invitación vale para toda su institución.
+        if (courseId != null && String(courseId).trim() !== '') {
+            const teacherProfile = await academicRepository.findTeacherProfileByUserId(requester.id);
+            if (!teacherProfile) throw new ServiceError('Perfil docente no encontrado', 403);
+            const assignment = await academicRepository.findTeacherAssignment(teacherProfile.id, Number(courseId));
+            if (!assignment) throw new ServiceError('Ese curso no está asignado a tu perfil docente', 403);
+            resolvedCourseId = Number(courseId);
+        }
     }
 
     const invitation = await invitationRepository.createInvitation({
         email,
         role,
         invitedById: requester.id,
-        institutionId: requester.institutionId,
+        institutionId,
         courseId: resolvedCourseId,
         expiresAt: new Date(Date.now() + INVITATION_TTL_HOURS * 60 * 60 * 1000),
     });
@@ -71,7 +83,7 @@ export const createInvitationService = async ({ email, role, courseId }, request
     }
 
     if (process.env.NODE_ENV !== 'production') {
-        console.log(`📧 Invitación enviada a ${email} — token: ${invitation.token}`);
+        console.info(`[Avisos I12] Invitación institucional registrada y enviada por email a ${email}.`);
     }
 
     // El token no se devuelve al cliente: solo viaja por email
@@ -157,37 +169,26 @@ export const acceptInvitationService = async (token, body = {}) => {
         throw new ServiceError('El turno seleccionado no es válido.', 400);
     }
 
-    let studentCourse = null;
-    if (role === 'STUDENT') {
-        const requestedId = positiveId(body.courseId);
-        const lockedId = positiveId(invitation.courseId);
-        if (lockedId && requestedId && lockedId !== requestedId) {
-            throw new ServiceError('El curso fue fijado por la invitación y no puede modificarse.', 403);
-        }
-        const courseId = lockedId || requestedId;
-        if (!courseId) throw new ServiceError('Seleccioná una carrera y un curso.', 400);
+    let preselectedCareerId = null;
+    if (role === 'STUDENT' && invitation.courseId) {
         const course = await getPrisma().course.findFirst({
-            where: { id: courseId, institutionId: invitation.institutionId, isActive: true },
-            select: { id: true, careerId: true },
+            where: { id: invitation.courseId, institutionId: invitation.institutionId, isActive: true },
+            select: { careerId: true },
         });
-        if (!course) throw new ServiceError('El curso no pertenece a la institución que te invitó.', 403);
-        const selectedCareerId = body.careerId === 'none' ? null : positiveId(body.careerId);
-        if (!lockedId && (body.careerId === undefined || body.careerId === '')) {
-            throw new ServiceError('Seleccioná una carrera y un curso.', 400);
-        }
-        if (!lockedId && selectedCareerId !== course.careerId) {
-            throw new ServiceError('La carrera elegida no coincide con el curso.', 400);
-        }
-        studentCourse = courseId;
+        if (!course) throw new ServiceError('El curso sugerido en la invitación ya no está disponible.', 409);
+        preselectedCareerId = course.careerId;
     }
 
+    const preceptorCoverages = role === 'PRECEPTOR'
+        ? await validatePreceptorCoverages(getPrisma(), invitation.institutionId, body.coverages) : [];
     const profileByRole = {
         TEACHER: { teacherProfile: { create: { legajoTeacher: staffLegajo, specialty: requiredText(specialty) || null } } },
-        PRECEPTOR: { preceptorProfile: { create: { legajoPreceptor: staffLegajo, shift: shift || null } } },
+        PRECEPTOR: { preceptorProfile: { create: { legajoPreceptor: staffLegajo, shift: legacyShift(preceptorCoverages),
+            ...(preceptorCoverages.length ? { coverages: { create: preceptorCoverages } } : {}) } } },
         DIRECTOR: { directorProfile: { create: { position: requiredText(position) || null } } },
         STUDENT: { studentProfile: { create: {
             legajoStudent: staffLegajo || `INV-${randomUUID().slice(0, 12).toUpperCase()}`,
-            courses: { create: { courseId: studentCourse } },
+            ...(preselectedCareerId ? { careerMemberships: { create: { careerId: preselectedCareerId } } } : {}),
         } } },
     };
     if (!profileByRole[role]) throw new ServiceError('Rol de invitación inválido.', 400);
@@ -204,6 +205,7 @@ export const acceptInvitationService = async (token, body = {}) => {
                 lastName: surname,
                 institutionId: invitation.institutionId, // FIJA: no se acepta del navegador
                 isActive: true,
+                emailVerifiedAt: new Date(), // La invitación llegó a este correo y fue aceptada.
                 signupStatus: null, // Sin filtro de aprobación, por ser una invitación.
                 ...profileByRole[role],
             },

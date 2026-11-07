@@ -1,0 +1,11 @@
+// Directorio de contactos: consentimiento granular, PRIVADO por defecto.
+// El teléfono personal permanece en User.telefono; el correo público alternativo es opcional.
+model ContactPreference {
+  id Int @id @default(autoincrement())
+  userId Int @unique
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactEmail String?
+  emailVisibleTo String[] @default([])
+  phoneVisibleTo String[] @default([])
+  updatedAt DateTime @updatedAt
+}

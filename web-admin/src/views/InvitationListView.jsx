@@ -34,6 +34,7 @@ import {
 } from '../hooks/useAcademic';
 
 import { AuthContext } from '../context/AuthContext';
+import { useInstitutions } from '../hooks/useInstitution';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const ROLE_LABELS = {
@@ -92,9 +93,14 @@ const STATUS_CONFIG = {
 function InviteForm({ onSubmit, onClose, isSaving, error }) {
     const { user } = useContext(AuthContext);
 
-    const isOnlyTeacher =
-        user?.roles?.length === 1 &&
-        user.roles[0] === 'TEACHER';
+    const roles = user?.roles || [];
+    const isSuperAdmin = user?.isSuperAdmin === true || roles.includes('SUPER_ADMIN');
+    const { data: institutionRows = [] } = useInstitutions(isSuperAdmin);
+    const institutions = Array.isArray(institutionRows) ? institutionRows : (institutionRows?.institutions || []);
+    const [institutionId, setInstitutionId] = useState('');
+    const canInviteDirectors = user?.isSuperAdmin || roles.some(r => ['DIRECTOR','SUPER_ADMIN'].includes(r));
+    const canInviteTeachers = canInviteDirectors || roles.includes('PRECEPTOR');
+    const isOnlyTeacher = !canInviteTeachers && roles.includes('TEACHER');
 
     const [email, setEmail] = useState('');
     const [role, setRole] = useState(
@@ -106,11 +112,10 @@ function InviteForm({ onSubmit, onClose, isSaving, error }) {
     const { data: careers } = useCareers(user?.institutionId);
     const { data: courses } = useCoursesByCareer(careerId);
 
-    const availableRoles = isOnlyTeacher
-        ? ['STUDENT']
-        : ['DIRECTOR', 'PRECEPTOR', 'TEACHER', 'STUDENT'];
+    const availableRoles = canInviteDirectors ? ['DIRECTOR','PRECEPTOR','TEACHER','STUDENT']
+        : canInviteTeachers ? ['TEACHER','STUDENT'] : ['STUDENT'];
 
-    const requiresCourse =
+    const showsOptionalCourse =
         role === 'STUDENT' && isOnlyTeacher;
 
     useEffect(() => {
@@ -131,12 +136,12 @@ function InviteForm({ onSubmit, onClose, isSaving, error }) {
         event.preventDefault();
 
         if (isSaving) return;
-        if (requiresCourse && !courseId) return;
 
         onSubmit({
             email: email.trim(),
             role,
-            ...(requiresCourse ? { courseId } : {}),
+            ...(isSuperAdmin ? { institutionId: Number(institutionId) } : {}),
+            ...(showsOptionalCourse && courseId ? { courseId } : {}),
         });
     };
 
@@ -172,7 +177,7 @@ function InviteForm({ onSubmit, onClose, isSaving, error }) {
                             </h2>
 
                             <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                                Invitá a una persona a formar parte de EduQuest.
+                                Invitá a una persona a recibir avisos de Avisos I12.
                             </p>
                         </div>
                     </div>
@@ -190,6 +195,12 @@ function InviteForm({ onSubmit, onClose, isSaving, error }) {
 
                 {/* CAMPOS */}
                 <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-6">
+                    {isSuperAdmin && <label className={labelClass}>Institución de destino
+                      <select className={`${inputClass} mt-2`} required value={institutionId} onChange={e=>{setInstitutionId(e.target.value);setCareerId('');setCourseId('');}}>
+                        <option value="">Seleccioná primero la institución</option>
+                        {institutions.filter(i=>i.isActive !== false).map(i=><option key={i.id} value={i.id}>{i.nombre}</option>)}
+                      </select>
+                    </label>}
                     <div>
                         <label htmlFor="invite-role" className={labelClass}>
                             Rol de la persona
@@ -255,7 +266,7 @@ function InviteForm({ onSubmit, onClose, isSaving, error }) {
                         </p>
                     </div>
 
-                    {requiresCourse && (
+                    {showsOptionalCourse && (
                         <div className="space-y-5 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
                             <div className="flex items-center gap-2">
                                 <GraduationCap
@@ -265,11 +276,11 @@ function InviteForm({ onSubmit, onClose, isSaving, error }) {
 
                                 <div>
                                     <h3 className="text-sm font-semibold text-white">
-                                        Asignación académica
+                                        Curso de referencia (opcional)
                                     </h3>
 
                                     <p className="mt-0.5 text-xs text-slate-500">
-                                        Seleccioná el curso del alumno.
+                                        Podés sugerir uno de tus cursos. El alumno podrá seguir avisos de otras materias igualmente.
                                     </p>
                                 </div>
                             </div>
@@ -279,8 +290,7 @@ function InviteForm({ onSubmit, onClose, isSaving, error }) {
                                     htmlFor="invite-career"
                                     className={labelClass}
                                 >
-                                    Carrera o nivel
-                                    <span className="ml-1 text-blue-400">*</span>
+                                    Carrera o nivel (opcional)
                                 </label>
 
                                 <select
@@ -290,7 +300,6 @@ function InviteForm({ onSubmit, onClose, isSaving, error }) {
                                         setCareerId(event.target.value);
                                         setCourseId('');
                                     }}
-                                    required
                                     disabled={isSaving}
                                     className={`${inputClass} cursor-pointer`}
                                 >
@@ -317,8 +326,7 @@ function InviteForm({ onSubmit, onClose, isSaving, error }) {
                                     htmlFor="invite-course"
                                     className={labelClass}
                                 >
-                                    Curso
-                                    <span className="ml-1 text-blue-400">*</span>
+                                    Curso sugerido (opcional)
                                 </label>
 
                                 <div className="relative">
@@ -334,7 +342,6 @@ function InviteForm({ onSubmit, onClose, isSaving, error }) {
                                             setCourseId(event.target.value)
                                         }
                                         disabled={!careerId || isSaving}
-                                        required
                                         className={`${inputClass} cursor-pointer pl-11`}
                                     >
                                         <option value="">
@@ -385,7 +392,7 @@ function InviteForm({ onSubmit, onClose, isSaving, error }) {
 
                     <button
                         type="submit"
-                        disabled={isSaving || (requiresCourse && !courseId)}
+                        disabled={isSaving}
                         className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-950/30 transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {isSaving ? (

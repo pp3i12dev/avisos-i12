@@ -13,6 +13,9 @@ import dashboardRoutes from './dashboard.routes.js';
 // Notificaciones
 import notificationRoutes from './notification.routes.js';
 import webPushRoutes from './webPush.routes.js';
+import noticeSubscriptionRoutes from './noticeSubscription.routes.js';
+import staffSignupRoutes from './staffSignup.routes.js';
+import contactDirectoryRoutes from './contactDirectory.routes.js';
 
 const router = Router();
 
@@ -32,5 +35,8 @@ router.use('/dashboard', dashboardRoutes);
 // Notificaciones
 router.use('/notifications', notificationRoutes);
 router.use('/push', webPushRoutes);
+router.use('/notice-subscriptions', noticeSubscriptionRoutes);
+router.use('/staff-requests', staffSignupRoutes);
+router.use('/contact-directory', contactDirectoryRoutes);
 
 export default router;

@@ -1,6 +1,6 @@
 
 import { useContext, useEffect, useState } from 'react';
-import { Link, useLocation, useOutletContext } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 
 import {
     ArrowRight,
@@ -20,6 +20,7 @@ import {
     ChevronLeft,
     CalendarDays,
     Megaphone,
+    ContactRound,
     ShieldCheck,
     LoaderCircle,
 } from 'lucide-react';
@@ -59,6 +60,35 @@ const SECTIONS = {
     },
 
 
+    subscriptions: {
+        label: 'Suscripciones a materias',
+        eyebrow: 'Avisos para alumnos',
+        description: 'Elegí materias y carreras para recibir avisos, sin inscripción académica oficial.',
+        color: 'text-[#C61515]',
+        iconBackground: 'bg-red-50',
+        iconBorder: 'border-red-100',
+        hoverBorder: 'hover:border-[#C61515]/30',
+        gradient: 'from-red-500/5 via-transparent to-transparent',
+        Icon: GraduationCap,
+        directPath: '/dashboard/notice-subscriptions',
+        items: [{ key: 'noticeSubscriptions', label: 'Mis suscripciones a avisos',
+          description: 'Seguí materias de diferentes años, turnos y carreras.',
+          color: 'text-red-700', iconBackground: 'bg-red-50', Icon: GraduationCap,
+          path: '/dashboard/notice-subscriptions', studentOnly: true, hideCount: true }],
+    },
+
+    contacts: {
+        label: 'Directorio de contactos',
+        eyebrow: 'Comunicación y personas',
+        description: 'Encontrá docentes, preceptores y autoridades y sus medios de contacto compartidos.',
+        color: 'text-[#C61515]', iconBackground: 'bg-red-50', iconBorder: 'border-red-100',
+        hoverBorder: 'hover:border-[#C61515]/30',gradient:'from-red-500/5 via-transparent to-transparent',
+        Icon: ContactRound,directPath:'/dashboard/contact-directory',
+        items: [{key:'contactDirectory',label:'Directorio de contactos',
+          description:'Buscá por carrera, turno, materia y función.',
+          Icon:ContactRound,color:'text-red-700',iconBackground:'bg-red-50',
+          path:'/dashboard/contact-directory',publicToAuthenticated:true,hideCount:true}],
+    },
     communications: {
         label: 'Avisos Institucionales',
         eyebrow: 'Comunicación institucional',
@@ -136,14 +166,25 @@ const SECTIONS = {
                 action: 'student:view',
             },
             {
-                key: 'studentSignupRequests',
-                label: 'Solicitudes de inscripción',
-                description: 'Aprobá o rechazá altas de alumnos, individualmente o en bloque.',
+                key: 'adminSubscriptions',
+                label: 'Suscripciones de alumnos',
+                description: 'Asistí a alumnos para seguir avisos de cualquier materia.',
+                color: 'text-red-700',
+                iconBackground: 'bg-red-500/10',
+                Icon: UsersRound,
+                path: '/dashboard/notice-subscriptions/admin',
+                action: 'student:enroll',
+                hideCount: true,
+            },
+            {
+                key: 'staffSignupRequests',
+                label: 'Solicitudes de personal',
+                description: 'Verificá y aprobá cuentas de docentes, preceptores y directivos.',
                 color: 'text-emerald-700',
                 iconBackground: 'bg-emerald-500/10',
                 Icon: UsersRound,
-                path: '/dashboard/students/requests',
-                action: 'selfSignup:approve',
+                path: '/dashboard/staff-requests',
+                action: 'staffSignup:review',
                 hideCount: true,
             },
             {
@@ -406,6 +447,7 @@ export default function DashboardView() {
     const { user } = auth;
 
     const location = useLocation();
+    const navigate = useNavigate();
     const { updateDashboardHeader } = useOutletContext() ?? {};
     // Cada entrada nueva a /dashboard empieza en el panel de cuatro tarjetas.
     // Solo se usa location.state.section para volver desde una vista interna.
@@ -456,6 +498,7 @@ export default function DashboardView() {
         }
 
         return section.items.filter((item) => {
+            if (item.studentOnly) return roles.includes('STUDENT');
             if (item.publicToAuthenticated) {
                 return Boolean(user);
             }
@@ -508,7 +551,7 @@ export default function DashboardView() {
                                 key={key}
                                 section={section}
                                 count={getVisibleItems(section).length}
-                                onClick={() => setActiveSection(key)}
+                                onClick={() => navigate('/dashboard', { state: { section: key } })}
                             />
                         ))}
                     </div>
@@ -528,7 +571,7 @@ export default function DashboardView() {
 
             <button
                 type="button"
-                onClick={() => setActiveSection(null)}
+                onClick={() => navigate('/dashboard', { state: { home: true } })}
                 className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border-2 border-rose-700 bg-rose-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-rose-900/15 transition hover:scale-[1.03] hover:bg-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
                 <ChevronLeft size={21} strokeWidth={3} />

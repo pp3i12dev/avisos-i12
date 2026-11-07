@@ -1,5 +1,6 @@
 import { requestPasswordReset, resetPassword } from '../services/passwordReset.service.js';
-import { loginService, registerStudentService } from '../services/auth.service.js';
+import { loginService, registerStudentService, registerStaffService } from '../services/auth.service.js';
+import { verifyRegistrationEmail, resendVerification } from '../services/publicRegistration.service.js';
 import { handleServiceError } from '../utils/handleServiceError.js';
 
 
@@ -25,7 +26,16 @@ export const registerStudent = async (req, res) => {
 };
 
 export const registerTeacher = async (req, res) => {
-    return res.status(501).json({ message: 'No implementado — se usa el flujo de invitación' });
+    try { return res.status(201).json(await registerStaffService(req.body)); }
+    catch (error) { return handleServiceError(error, res); }
+};
+export const verifyEmail = async (req, res) => {
+    try { return res.json(await verifyRegistrationEmail(req.body?.token)); }
+    catch (error) { return handleServiceError(error, res); }
+};
+export const resendEmail = async (req, res) => {
+    try { return res.json(await resendVerification(req.body?.email)); }
+    catch (error) { return handleServiceError(error, res); }
 };
 export const forgotPassword = async (req, res) => {
   try { return res.status(200).json(await requestPasswordReset(req.body)); }

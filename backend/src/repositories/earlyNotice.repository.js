@@ -478,26 +478,13 @@ export const earlyNoticeRepository = {
             }
         }
 
-        /*
-         * Instituciones presentes en las asignaciones
-         * disponibles.
-         */
-        const institutionMap = new Map();
-
-        for (const assignment of validAssignments) {
-            const institution =
-                assignment.course.institution;
-
-            if (
-                institution &&
-                !institutionMap.has(institution.id)
-            ) {
-                institutionMap.set(
-                    institution.id,
-                    institution
-                );
-            }
-        }
+        // Listar también instituciones activas cuyos docentes todavía no tienen materias.
+        // El alcance se calcula en el servidor, nunca desde el filtro del navegador.
+        const institutions = await prisma.institution.findMany({
+            where: { isActive: true, ...(institutionId !== null ? { id: institutionId } : {}) },
+            select: { id: true, nombre: true },
+            orderBy: { nombre: 'asc' },
+        });
 
         return {
             teachers: registeredTeachers.map(t => ({
@@ -506,11 +493,7 @@ export const earlyNoticeRepository = {
                 name: `${t.user.firstName} ${t.user.lastName}`.trim(),
                 user: t.user,
             })),
-            institutions: [
-                ...institutionMap.values(),
-            ].sort((a, b) =>
-                a.nombre.localeCompare(b.nombre, 'es')
-            ),
+            institutions,
 
             courses: [
                 ...courseMap.values(),
@@ -542,6 +525,13 @@ export const earlyNoticeRepository = {
                     },
                 },
             },
+        });
+    },
+
+    // Suscripciones reales de materia/comisión de esta cuenta, nunca matrículas antiguas.
+    findNoticeSubscriptionsForUser(userId) {
+        return prisma.studentNoticeSubscription.findMany({
+            where: { student: { userId } }, select: { courseId: true, subjectId: true },
         });
     },
 

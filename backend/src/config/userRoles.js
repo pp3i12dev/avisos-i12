@@ -37,7 +37,7 @@ export const ROLE_CONFIG = {
         },
         requiredCreateFields: ['legajoPreceptor'],
         buildProfileCreate: (body) => ({ legajoPreceptor: body.legajoPreceptor, shift: body.shift ?? null }),
-        allowedProfileEdit: ['shift'],
+        allowedProfileEdit: ['shift'], // La cobertura múltiple se valida en users.service.js
     },
     teacher: {
         profileField: 'teacherProfile',

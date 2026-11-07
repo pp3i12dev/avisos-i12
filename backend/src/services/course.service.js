@@ -27,6 +27,12 @@ const selectInstitution = (body, requester) => isSuperAdmin(requester)
     : scopeId(requester);
 // Turno de pertenencia del curso. No se confunde con la modalidad de cada clase.
 const SHIFTS = new Set(['MANANA', 'TARDE', 'NOCHE']);
+const levelOf = value => {
+    if (value === undefined || value === null || value === '') return null;
+    const level = Number(value);
+    if (!Number.isInteger(level) || level < 1 || level > 12) throw new ServiceError('El año de la carrera debe ser un entero del 1 al 12.');
+    return level;
+};
 const shiftOf = value => {
     const shift = String(value ?? '').toUpperCase();
     if (!SHIFTS.has(shift)) throw new ServiceError('Seleccioná un turno válido: mañana, tarde o noche.', 400);
@@ -69,7 +75,7 @@ export const createCourseService = async (body, requester) => {
     const year = academicYear ?? 2026;
     await assertUniqueCourse({ nombre, academicYear: year, careerId, institutionId, shift });
     try {
-        return await courseRepository.createCourse({ nombre, academicYear, careerId, institutionId, shift });
+        return await courseRepository.createCourse({ nombre, academicYear, careerId, institutionId, shift, level: levelOf(body.level) });
     } catch (error) {
         if (error.code === 'P2002' || error.code === '23505') throw new ServiceError('Ya existe ese curso con esa carrera, año y turno.', 409);
         throw error;
@@ -93,6 +99,7 @@ export const updateCourseService = async (id, body, requester) => {
         if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new ServiceError('Año académico inválido');
         data.academicYear = year;
     }
+    if (body.level !== undefined) data.level = levelOf(body.level);
     if (body.careerId !== undefined) {
         data.careerId = body.careerId ? asPositiveId(body.careerId, 'Carrera') : null;
         await validateCareer(data.careerId, current.institutionId);

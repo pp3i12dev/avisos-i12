@@ -1,5 +1,5 @@
 import { getPrisma } from '../config/prisma.js';
-import { enqueueWebPushForNotification } from '../services/webPush.service.js';
+import { queueRecipientBatch } from '../utils/batchNotificationQueue.js';
 
 const prisma = () => getPrisma();
 const relations = {
@@ -31,13 +31,16 @@ export const institutionCommunicationRepository = {
   courses: (institutionId, ids) => prisma().course.findMany({ where: { institutionId, id: { in: ids } }, select: { id: true, careerId: true } }),
   // Only fetch members of the selected institution; profile relations determine eligibility.
   members: (institutionId) => prisma().user.findMany({
-    where: { institutionId, isActive: true },
+    where: { institutionId, isActive: true, deletedAt: null },
     select: {
       id: true, email: true, isSuperAdmin: true,
       directorProfile: { select: { id: true } },
       preceptorProfile: { select: { id: true } },
       teacherProfile: { select: { teacherSubjects: { where: { isActive: true }, select: { courseId: true, course: { select: { careerId: true } } } } } },
-      studentProfile: { select: { courses: { select: { courseId: true, course: { select: { careerId: true } } } } } },
+      studentProfile: { select: {
+        careerMemberships: { select: { careerId: true } },
+        noticeSubscriptions: { select: { courseId: true, course: { select: { careerId: true } } } },
+      } },
     },
   }),
   async save({ old, data, actorId, recipientIds, removedRecipientIds = [] }) {
@@ -92,26 +95,14 @@ export const institutionCommunicationRepository = {
         ? `\nActividades afectadas: ${data.affectedActivities.map(a => activityLabels[a] || a).join(', ')}`
         : '';
       const body = `${old ? 'Comunicación actualizada' : 'Nueva comunicación'}: ${label}\n${data.title}\n${data.details}${affected}\nDesde: ${data.startsAt.toISOString()}\nHasta: ${data.endsAt.toISOString()}\nVersión: ${version}`;
-      for (const id of recipientIds) {
-        const n = await tx.notification.create({ data: {
-          userId: id, institutionEventId: record.id, type, title: `${label}: ${data.title}`, message: body, revision: version,
-        } });
-        await enqueueWebPushForNotification(tx, id, n.id);
-        const user = await tx.user.findUnique({ where: { id }, select: { email: true } });
-        if (user?.email) await tx.notificationDelivery.create({ data: { notificationId: n.id, channel: 'EMAIL', recipient: user.email } });
-      }
-      for (const id of removedRecipientIds) {
-        const n = await tx.notification.create({ data: {
-          userId: id, institutionEventId: record.id, type: 'EVENT_CANCELLED',
-          title: `Ya no estás incluido: ${data.title}`,
-          message: 'La comunicación institucional se actualizó y ya no está dirigida a tu grupo.', revision: version,
-        } });
-        await enqueueWebPushForNotification(tx, id, n.id);
-        const user = await tx.user.findUnique({ where: { id }, select: { email: true } });
-        if (user?.email) await tx.notificationDelivery.create({ data: { notificationId: n.id, channel: 'EMAIL', recipient: user.email } });
-      }
+      await queueRecipientBatch(tx, { origin: 'institutionEventId', originId: record.id,
+        type, title: `${label}: ${data.title}`, message: body, revision: version, userIds: recipientIds });
+      await queueRecipientBatch(tx, { origin: 'institutionEventId', originId: record.id,
+        type: 'EVENT_CANCELLED', title: `Ya no estás incluido: ${data.title}`,
+        message: 'La comunicación institucional se actualizó y ya no está dirigida a tu grupo.',
+        revision: version, userIds: removedRecipientIds });
       return { id: record.id, version, recipients: recipientIds.length, removedRecipients: removedRecipientIds.length };
-    });
+    }, { timeout: 20000, maxWait: 10000 });
   },
   async cancel(old, actorId, reason, recipientIds) {
     return prisma().$transaction(async tx => {
@@ -127,18 +118,14 @@ export const institutionCommunicationRepository = {
         institutionEventId: old.id, version, action: 'CANCELLED', createdById: actorId,
         snapshot: { reason, previous: old.title },
       } });
-      for (const id of recipientIds) {
-        const n = await tx.notification.create({ data: {
-          userId: id, institutionEventId: old.id, type: 'EVENT_CANCELLED',
-          title: `Cancelación de ${old.kind === 'SUSPENSION' ? 'suspensión de actividades' : 'evento'}: ${old.title}`, message: old.kind === 'SUSPENSION'
-            ? `La suspensión de clases fue cancelada. Las clases se desarrollarán normalmente según el horario habitual, salvo que la institución comunique otra disposición.${reason ? ` Motivo: ${reason}` : ''}`
-            : `El evento institucional fue cancelado y no se realizará según lo anunciado.${reason ? ` Motivo: ${reason}` : ''}`, revision: version,
-        } });
-        await enqueueWebPushForNotification(tx, id, n.id);
-        const user = await tx.user.findUnique({ where: { id }, select: { email: true } });
-        if (user?.email) await tx.notificationDelivery.create({ data: { notificationId: n.id, channel: 'EMAIL', recipient: user.email } });
-      }
+      await queueRecipientBatch(tx, { origin: 'institutionEventId', originId: old.id,
+        type: 'EVENT_CANCELLED',
+        title: `Cancelación de ${old.kind === 'SUSPENSION' ? 'suspensión de actividades' : 'evento'}: ${old.title}`,
+        message: old.kind === 'SUSPENSION'
+          ? `La suspensión de clases fue cancelada. Las clases se desarrollarán normalmente según el horario habitual, salvo que la institución comunique otra disposición.${reason ? ` Motivo: ${reason}` : ''}`
+          : `El evento institucional fue cancelado y no se realizará según lo anunciado.${reason ? ` Motivo: ${reason}` : ''}`,
+        revision: version, userIds: recipientIds });
       return { id: old.id, version, cancelled: true };
-    });
+    }, { timeout: 20000, maxWait: 10000 });
   },
 };

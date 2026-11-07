@@ -7,5 +7,6 @@ model PreceptorProfile {
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  coverages PreceptorCoverage[]
   registeredAttendances Attendance[] @relation("PreceptorAttendance")
 }

@@ -7,6 +7,7 @@ model User {
   firstName String
   lastName String
   isActive Boolean @default(true)
+  emailVerifiedAt DateTime?
   // Eliminacion administrativa: conserva evidencias historicas (notas y avisos).
   deletedAt DateTime?
   // Solo las altas públicas de alumnos tienen este estado.
@@ -24,6 +25,9 @@ model User {
   @@index([institutionId, signupStatus])
   @@index([deletedAt])
   studentProfile StudentProfile?
+  staffSignup StaffSignupRequest?
+  emailVerificationTokens EmailVerificationToken[]
+  contactPreference ContactPreference?
   teacherProfile TeacherProfile?
   preceptorProfile PreceptorProfile?
   directorProfile DirectorProfile?

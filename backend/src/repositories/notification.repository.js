@@ -1,5 +1,5 @@
 import { getPrisma } from '../config/prisma.js';
-import { enqueueWebPushForNotification } from '../services/webPush.service.js';
+import { queueRecipientBatch } from '../utils/batchNotificationQueue.js';
 
 const prisma = getPrisma();
 
@@ -20,6 +20,14 @@ export const notificationRepository = {
             select: { id: true, email: true, telefono: true, isActive: true },
         });
     },
+    findStudentsByOfferings(offerings) {
+        const keys = [...new Map(offerings.map(x => [`${x.courseId}:${x.subjectId}`, { courseId: x.courseId, subjectId: x.subjectId }])).values()];
+        if (!keys.length) return Promise.resolve([]);
+        return prisma.studentNoticeSubscription.findMany({
+            where: { OR: keys, student: { user: { isActive: true, deletedAt: null } } },
+            select: { student: { select: { user: { select: { id: true, email: true, telefono: true, isActive: true } } } } },
+        });
+    },
     findStudentsByCourse(courseId) {
         return prisma.studentCourse.findMany({
             where: { courseId, student: { user: { isActive: true } } },
@@ -29,33 +37,12 @@ export const notificationRepository = {
         });
     },
     async publish(notice, type, title, message, users, revision = 1) {
-        if (!Number.isSafeInteger(revision) || revision < 1) throw new Error("Revisión inválida");
+        if (!Number.isSafeInteger(revision) || revision < 1) throw new Error('Revisión inválida');
         const recipients = [...new Map(users.filter(u => u?.isActive !== false).map(u => [u.id, u])).values()];
-        return prisma.$transaction(async (tx) => {
-            for (const user of recipients) {
-                const notification = await tx.notification.upsert({
-                    where: { userId_earlyNoticeId_type_revision: {
-                        userId: user.id, earlyNoticeId: notice.id, type, revision,
-                    } },
-                    create: { userId: user.id, earlyNoticeId: notice.id, type, title, message, revision },
-                    update: {},
-                });
-                await enqueueWebPushForNotification(tx, user.id, notification.id);
-                const channels = [
-                    user.email && { channel: 'EMAIL', recipient: user.email },
-                ].filter(Boolean);
-                for (const delivery of channels) {
-                    await tx.notificationDelivery.upsert({
-                        where: { notificationId_channel: {
-                            notificationId: notification.id, channel: delivery.channel,
-                        } },
-                        create: { notificationId: notification.id, ...delivery },
-                        update: {},
-                    });
-                }
-            }
-            return recipients.length;
-        });
+        return prisma.$transaction(tx => queueRecipientBatch(tx, {
+            origin: 'earlyNoticeId', originId: notice.id, type, title, message, revision,
+            userIds: recipients.map(u=>u.id),
+        }), { timeout: 20000, maxWait: 10000 });
     },
     listForUser(userId, { skip, take }) {
         return prisma.notification.findMany({

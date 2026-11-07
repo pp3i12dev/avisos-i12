@@ -1,8 +1,8 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useInstitutions, useMyInstitution } from '../hooks/useInstitution';
-import { useCoursesAdmin } from '../hooks/useCourseAdmin';
 import { useUserRoles, useUpdateUserRoles } from '../hooks/useUsers';
+import PreceptorCoveragePicker from './PreceptorCoveragePicker';
 
 const baseEmpty = {
     dni: '',
@@ -17,7 +17,7 @@ const baseEmpty = {
 const ROLE_EXTRA_FIELDS = {
     student: { legajoStudent: '' },
     teacher: { legajoTeacher: '', specialty: '' },
-    preceptor: { legajoPreceptor: '', shift: '' },
+    preceptor: { legajoPreceptor: '', coverages: [] },
     director: { position: '' },
 };
 
@@ -41,9 +41,7 @@ export default function UserFormModal({
     const isSuperAdmin = currentUser?.isSuperAdmin === true || currentUser?.roles?.includes('SUPER_ADMIN');
     const { data: institutionData = [] } = useInstitutions(open && isSuperAdmin);
     const { data: myInstitution } = useMyInstitution(open && !isSuperAdmin);
-    const { data: courseData = [] } = useCoursesAdmin();
     const institutions = Array.isArray(institutionData) ? institutionData : (institutionData?.institutions ?? []);
-    const courses = Array.isArray(courseData) ? courseData : (courseData?.courses ?? []);
 
     const [showPassword, setShowPassword] = useState(false);
     const [confirmInstitutionTransfer, setConfirmInstitutionTransfer] = useState(false);
@@ -105,7 +103,6 @@ export default function UserFormModal({
                 ...(role === 'student' && {
                     legajoStudent:
                         initialData.profile?.legajoStudent ?? '',
-                    courseId: '',
                 }),
 
                 ...(role === 'teacher' && {
@@ -118,8 +115,7 @@ export default function UserFormModal({
                 ...(role === 'preceptor' && {
                     legajoPreceptor:
                         initialData.profile?.legajoPreceptor ?? '',
-                    shift:
-                        initialData.profile?.shift ?? '',
+                    coverages: (initialData.profile?.coverages || []).map(c => ({ careerId: c.careerId, shift: c.shift, career: c.career })),
                 }),
 
                 ...(role === 'director' && {
@@ -132,7 +128,6 @@ export default function UserFormModal({
                 ...baseEmpty,
                 ...ROLE_EXTRA_FIELDS[role],
                 institutionId: String(currentUser?.institutionId ?? ''),
-                ...(role === 'student' ? { courseId: '' } : {}),
             });
 
             setRoleChecks({
@@ -210,8 +205,6 @@ export default function UserFormModal({
                 payload.confirmInstitutionTransfer = confirmInstitutionTransfer;
             }
         }
-        if (role !== 'student' || isEditing || !payload.courseId) delete payload.courseId;
-        else payload.courseId = Number(payload.courseId);
 
         /*
          * Al editar:
@@ -234,7 +227,7 @@ export default function UserFormModal({
     if (!open) return null;
 
     return (
-        <div className="i12-light-modal fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto px-3 py-6">
+        <div className="i12-light-modal fixed inset-x-0 bottom-0 top-[116px] bg-black/50 flex items-start justify-center z-[120] overflow-y-auto px-3 py-6">
 
             <form
                 onSubmit={handleSubmit}
@@ -250,10 +243,10 @@ export default function UserFormModal({
                 </h3>
 
                 {/* Institución obligatoria para todos los usuarios: la autoridad local no puede cambiarla. */}
-                {isSuperAdmin ? <label className="block space-y-1.5 text-sm text-slate-200">
+                {isSuperAdmin ? <label className="block space-y-1.5 text-sm text-slate-700">
                     <span className="font-semibold">Institución del usuario</span>
-                    <select name="institutionId" required value={form.institutionId} onChange={e => setForm(old => ({ ...old, institutionId: e.target.value, courseId: '' }))}
-                        className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-white">
+                    <select name="institutionId" required value={form.institutionId} onChange={e => setForm(old => ({ ...old, institutionId: e.target.value, courseId: '', coverages: [] }))}
+                        className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-900">
                         <option value="">Seleccionar institución</option>
                         {institutions.filter(i => i.isActive).map(i => <option key={i.id} value={i.id}>{i.nombre}</option>)}
                     </select>
@@ -283,7 +276,7 @@ export default function UserFormModal({
                         onChange={handleChange}
                         placeholder="Nombre"
                         required
-                        className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                        className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                     />
 
                     <input
@@ -292,7 +285,7 @@ export default function UserFormModal({
                         onChange={handleChange}
                         placeholder="Apellido"
                         required
-                        className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                        className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                     />
 
                 </div>
@@ -307,13 +300,13 @@ export default function UserFormModal({
                     onChange={handleChange}
                     placeholder="DNI"
                     required
-                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                 />
 
                 {/* ========================= */}
                 {/* TELEFONO OPCIONAL: todos los perfiles */}
                 <label className="block space-y-1 text-sm font-medium text-slate-700">
-                    <span>Teléfono (opcional)</span>
+                    <span>Teléfono móvil (opcional)</span>
                     <input
                         name="telefono"
                         type="tel"
@@ -336,7 +329,7 @@ export default function UserFormModal({
                     onChange={handleChange}
                     placeholder="Email"
                     required
-                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                 />
 
                 {/* ========================= */}
@@ -356,7 +349,7 @@ export default function UserFormModal({
                                 : 'Contraseña'
                         }
                         required={!isEditing}
-                        className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 pr-10 text-sm"
+                        className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-900 placeholder:text-slate-500"
                     />
 
                     <button
@@ -389,18 +382,10 @@ export default function UserFormModal({
                             onChange={handleChange}
                             placeholder="Legajo"
                             required
-                            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                            className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                         />
 
-                        {!isEditing && <label className="block space-y-1.5 text-sm text-slate-200">
-                            <span className="font-semibold">Curso de matrícula (opcional)</span>
-                            <select name="courseId" value={form.courseId || ''} onChange={handleChange}
-                                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-white">
-                                <option value="">Asignar más adelante</option>
-                                {courses.filter(c => Number(c.institutionId) === Number(isSuperAdmin ? form.institutionId : currentUser?.institutionId))
-                                    .map(c => <option key={c.id} value={c.id}>{c.nombre} · {c.career?.nombre || 'Sin carrera'} · {c.academicYear}</option>)}
-                            </select>
-                        </label>}
+                        {!isEditing && <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">El alumno podrá seguir los avisos de materias de varias carreras y turnos desde «Mis suscripciones». No se realiza una matrícula académica oficial.</p>}
                     </div>
                 )}
 
@@ -416,7 +401,7 @@ export default function UserFormModal({
                             onChange={handleChange}
                             placeholder="Legajo"
                             required
-                            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                            className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                         />
 
                         <input
@@ -424,7 +409,7 @@ export default function UserFormModal({
                             value={form.specialty}
                             onChange={handleChange}
                             placeholder="Especialidad"
-                            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                            className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                         />
                     </>
                 )}
@@ -441,15 +426,14 @@ export default function UserFormModal({
                             onChange={handleChange}
                             placeholder="Legajo"
                             required
-                            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                            className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                         />
 
-                        <input
-                            name="shift"
-                            value={form.shift}
-                            onChange={handleChange}
-                            placeholder="Turno"
-                            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                        <PreceptorCoveragePicker
+                            institutionId={isSuperAdmin ? form.institutionId : currentUser?.institutionId}
+                            value={form.coverages || []}
+                            onChange={coverages => setForm(current => ({ ...current, coverages }))}
+                            disabled={isSaving}
                         />
                     </>
                 )}
@@ -464,7 +448,7 @@ export default function UserFormModal({
                         value={form.position}
                         onChange={handleChange}
                         placeholder="Cargo"
-                        className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                        className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                     />
                 )}
 
@@ -578,7 +562,7 @@ export default function UserFormModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 rounded text-slate-300 hover:bg-slate-800 cursor-pointer"
+                        className="rounded-xl border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-100 cursor-pointer"
                     >
                         Cancelar
                     </button>
@@ -586,7 +570,7 @@ export default function UserFormModal({
                     <button
                         type="submit"
                         disabled={isSaving}
-                        className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        className="rounded-xl bg-[#C61515] px-4 py-2 font-semibold hover:bg-red-700 text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                     >
                         {isSaving
                             ? 'Guardando...'
