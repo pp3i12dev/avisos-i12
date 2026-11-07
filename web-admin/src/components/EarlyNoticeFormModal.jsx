@@ -27,6 +27,9 @@ const scheduleFor = (a, all) => (a.schedules?.length ? a.schedules : all.filter(
 export default function EarlyNoticeFormModal(props) {
   const { open, initialData, token, onSubmit, onClose, isSaving, formError } = props;
   const { user } = useContext(AuthContext);
+  const roles = (user?.roles || []).map(r => typeof r === 'string' ? r.toUpperCase() : String(r?.name || r?.role || '').toUpperCase());
+  const isAuthority = user?.isSuperAdmin === true || roles.some(r => ['SUPER_ADMIN','DIRECTOR','PRECEPTOR'].includes(r));
+  const teacherOnly = roles.includes('TEACHER') && !isAuthority;
   const [teacherId,setTeacherId] = useState('');
   const [type,setType] = useState('ABSENCE');
   const [duration,setDuration] = useState('single');
@@ -42,7 +45,15 @@ export default function EarlyNoticeFormModal(props) {
   const options = data?.data ?? data?.options ?? data ?? {};
   const assignments = useMemo(() => (Array.isArray(options.assignments) ? options.assignments : []).filter(a => a.isActive !== false), [data]);
   const schedules = useMemo(() => Array.isArray(options.schedules) ? options.schedules : [], [data]);
-  const teachers = useMemo(() => [...new Map(assignments.map(a => [groupId(a), {id:groupId(a), name:name(a)}])).values()].filter(t => t.id), [assignments]);
+  const teachers = useMemo(() => {
+    if (Array.isArray(options.teachers)) {
+      return options.teachers.map(t => ({
+        id: Number(t.id ?? t.user?.id ?? t.userId),
+        name: t.name || `${t.user?.firstName || ''} ${t.user?.lastName || ''}`.trim(),
+      })).filter(t => Number.isInteger(t.id) && t.id > 0);
+    }
+    return [...new Map(assignments.map(a => [groupId(a), {id:groupId(a), name:name(a)}])).values()].filter(t => t.id);
+  }, [data]);
   useEffect(() => {
     if (!open) return;
     const editing = Boolean(initialData?.id);
@@ -60,9 +71,17 @@ export default function EarlyNoticeFormModal(props) {
     setError('');
   }, [open, initialData?.id]);
   useEffect(() => {
+    if (!open || initialData?.id) return;
+    // El docente solo puede generar avisos de sus propias asignaciones.
+    if (teacherOnly && user?.id && teachers.some(t => t.id === Number(user.id))) {
+      setTeacherId(String(user.id));
+      return;
+    }
     if (!teacherId && teachers.length === 1) setTeacherId(String(teachers[0].id));
-  }, [teachers, teacherId]);
+  }, [open, initialData?.id, teachers, teacherId, teacherOnly, user?.id]);
   const teacherAssignments = useMemo(() => assignments.filter(a => String(groupId(a)) === teacherId), [assignments, teacherId]);
+  const teacherHasAssignments = teacherAssignments.length > 0;
+  const teacherHasSchedules = teacherAssignments.some(a => scheduleFor(a, schedules).length > 0);
   const effectiveEnd = duration === 'single' ? start : end;
   const periodError = !start || !effectiveEnd ? '' : start < todayArgentina() ? 'No se pueden generar avisos para fechas anteriores a hoy.' : effectiveEnd < start ? 'La fecha final debe ser igual o posterior a la inicial.' : Math.round((dateAtUTC(effectiveEnd) - dateAtUTC(start))/86400000) > 90 ? 'El período no puede superar los 91 días.' : '';
   const classes = useMemo(() => {
@@ -118,10 +137,14 @@ export default function EarlyNoticeFormModal(props) {
       <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
         <div className="space-y-6 overflow-y-auto p-6">
           {isLoading && <p className="text-[#A91818]">Cargando asignaciones y horarios…</p>}
-          {isError && <p className="text-red-700">No se pudieron cargar los horarios del docente.</p>}
+          {isError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">No se pudieron cargar las opciones de avisos. Comprobá tu sesión y la conexión con la API.</p>}
+          {!isLoading && !isError && teachers.length === 0 && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">No hay perfiles docentes activos en tu institución. Creá o activá un docente antes de generar avisos.</p>}
+          {!isLoading && !isError && teacherId && !teacherHasAssignments && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">El docente está registrado, pero no tiene materias y cursos asignados de forma activa. Asignale una materia en Gestión académica → Asignación de docentes.</p>}
+          {!isLoading && !isError && teacherId && teacherHasAssignments && !teacherHasSchedules && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">El docente tiene asignaciones, pero todavía no hay horarios registrados para esas materias y cursos. Completá los horarios para poder seleccionar clases.</p>}
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-2 text-sm font-semibold">Docente responsable
-              <select className={`${FIELD} cursor-pointer`} value={teacherId} onChange={e=>setFieldTeacher(e.target.value)} disabled={Boolean(initialData?.id)} required><option value="">Seleccionar docente</option>{teachers.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select>
+              <select className={`${FIELD} cursor-pointer`} value={teacherId} onChange={e=>setFieldTeacher(e.target.value)} disabled={Boolean(initialData?.id) || teacherOnly} required><option value="">Seleccionar docente</option>{teachers.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select>
+              {teacherOnly && <span className="block text-xs font-normal text-slate-500">Como docente, solo podés crear avisos para tus propias clases.</span>}
             </label>
             <label className="space-y-2 text-sm font-semibold">Tipo de aviso
               <select className={`${FIELD} cursor-pointer`} value={type} onChange={e=>setType(e.target.value)}>{TYPES.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select>
@@ -138,7 +161,7 @@ export default function EarlyNoticeFormModal(props) {
             <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-lg font-bold">Clases afectadas</h3><p className="text-sm text-[#64748B]">Se muestran los horarios reales del docente, incluso de distintas materias y cursos. Ninguna clase se selecciona automáticamente.</p></div><span className="rounded-lg bg-[#FCEAEA] px-3 py-2 text-sm font-bold">{chosen.length} de {classes.length} seleccionadas</span></div>
             {classes.length>0 && <div className="flex gap-3"><button type="button" className="cursor-pointer text-sm text-[#B31212] hover:underline" onClick={()=>setSelected(classes.map(c=>c.key))}>Seleccionar todas</button><button type="button" className="cursor-pointer text-sm text-[#475569] hover:underline" onClick={()=>setSelected([])}>Quitar selección</button></div>}
             <div className="max-h-80 space-y-2 overflow-y-auto rounded-xl border border-[#D8DDE3] p-3">
-              {classes.length===0 ? <p className="p-3 text-sm text-[#64748B]">{!teacherId || !start || !effectiveEnd ? 'Elegí docente y período para consultar sus clases.' : 'No hay clases programadas para ese período.'}</p> : classes.map(c=><label key={c.key} className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#D8DDE3] bg-[#F1F2F4] p-3 hover:border-blue-500"><input type="checkbox" className="mt-1 h-4 w-4 accent-[#C61515]" checked={selectedSet.has(c.key)} onChange={e=>setSelected(old=>e.target.checked?[...old,c.key]:old.filter(k=>k!==c.key))}/><span><strong>{DAY_LABELS[DAYS[dateAtUTC(c.classDate).getUTCDay()]]} {format(c.classDate)} · {c.startTime}–{c.endTime}</strong><span className="block text-sm text-[#475569]">{c.subject} · {c.course} · Turno {shiftLabel(c.courseShift)} · Horario {shiftLabel(c.shift)} · <strong className="text-cyan-300">{MODALITY_LABELS[c.modality] || c.modality}</strong></span></span></label>)}
+              {classes.length===0 ? <p className="p-3 text-sm text-[#64748B]">{!teacherId || !start || !effectiveEnd ? 'Elegí docente y período para consultar sus clases.' : 'No hay clases programadas para las fechas seleccionadas. Revisá los días y horarios asignados.'}</p> : classes.map(c=><label key={c.key} className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#D8DDE3] bg-[#F1F2F4] p-3 hover:border-blue-500"><input type="checkbox" className="mt-1 h-4 w-4 accent-[#C61515]" checked={selectedSet.has(c.key)} onChange={e=>setSelected(old=>e.target.checked?[...old,c.key]:old.filter(k=>k!==c.key))}/><span><strong>{DAY_LABELS[DAYS[dateAtUTC(c.classDate).getUTCDay()]]} {format(c.classDate)} · {c.startTime}–{c.endTime}</strong><span className="block text-sm text-[#475569]">{c.subject} · {c.course} · Turno {shiftLabel(c.courseShift)} · Horario {shiftLabel(c.shift)} · <strong className="text-cyan-300">{MODALITY_LABELS[c.modality] || c.modality}</strong></span></span></label>)}
             </div>
           </section>
           {type==='LATE_ARRIVAL' && <label className="block space-y-2 text-sm font-semibold">Hora estimada de llegada<input type="time" className={FIELD} value={arrival} onChange={e=>setArrival(e.target.value)} required/></label>}

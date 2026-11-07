@@ -16,7 +16,7 @@ export const useLogin = () => {
             const token = res.token || res.data?.token;
 
             loginContext(user, token);
-            navigate('/dashboard');
+            navigate('/dashboard', { replace: true, state: { home: true } });
         },
         onError: (error) => {
             console.error('Error en login:', error);

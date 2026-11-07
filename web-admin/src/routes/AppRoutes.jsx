@@ -34,10 +34,6 @@ import TeacherSubjectAssignmentsView from '../views/TeacherSubjectAssignmentView
 import SubjectSchedulesView from '../views/SubjectSchedulesView';
 
 import RoleRoute from './RoleRoute';
-import TeacherSubjectsView from '../views/TeacherSubjectsView';
-import UnitsView from '../views/UnitsView';
-import TeacherActivityStudioView from '../views/TeacherActivityStudioView';
-import TeacherAssessmentsView from '../views/TeacherAssessmentsView';
 import EarlyNoticesView from '../views/EarlyNoticesView';
 import InstitutionCommunicationsView from '../views/InstitutionCommunicationsView';
 
@@ -199,31 +195,9 @@ export default function AppRoutes() {
                         }
                     />
 
-                    {/* Dirección histórica: el seguimiento ahora es contextual a una materia. */}
-                    <Route path="teacher-assessments" element={<Navigate to="/dashboard/my-subjects" replace />} />
-
-                    <Route
-                        path="my-subjects"
-                        element={
-                            <RoleRoute action="subjectContent:manage">
-                                <TeacherSubjectsView />
-                            </RoleRoute>
-                        }
-                    />
-
-                    <Route
-                        path="my-subjects/:teacherSubjectId/studio"
-                        element={<RoleRoute action="subjectContent:manage"><TeacherActivityStudioView /></RoleRoute>}
-                    />
-                    <Route path="my-subjects/:teacherSubjectId/results" element={<RoleRoute action="grade:manage"><TeacherAssessmentsView /></RoleRoute>} />
-                    <Route
-                        path="my-subjects/:teacherSubjectId/units"
-                        element={
-                            <RoleRoute action="subjectContent:manage">
-                                <UnitsView />
-                            </RoleRoute>
-                        }
-                    />
+                    {/* En Avisos I12 no existen 'Mis cursos', unidades ni actividades de Unity. */}
+                    <Route path="teacher-assessments" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="my-subjects/*" element={<Navigate to="/dashboard" replace />} />
 
                     <Route
                         path="institution"

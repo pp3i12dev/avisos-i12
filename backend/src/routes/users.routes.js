@@ -10,6 +10,7 @@ import {
     updateUser,
     toggleUserStatus,
     deleteUser,
+    bulkDeleteStudents,
     getUserRoles,
     updateUserRoles,
     getMyProfile,
@@ -48,6 +49,9 @@ router.get('/signup-requests', requirePermission('selfSignup:approve'), signupCo
 router.get('/signup-requests/groups', requirePermission('selfSignup:approve'), signupController.groups);
 router.post('/signup-requests/approve', requirePermission('selfSignup:approve'), signupController.approve);
 router.post('/signup-requests/reject', requirePermission('selfSignup:approve'), signupController.reject);
+
+// Eliminación en lote: la autorización se revalida en el servicio.
+router.post('/students/bulk-delete', bulkDeleteStudents);
 
 // Listar usuarios.
 router.get('/', listUsers);

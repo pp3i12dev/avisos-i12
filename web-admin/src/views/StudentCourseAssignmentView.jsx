@@ -1,193 +1,148 @@
+import { useContext, useMemo, useState } from 'react';
+import { GraduationCap, UsersRound } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
+import { useAssignmentOptions } from '../hooks/useAssignments';
+import CourseStudentsManager from '../components/CourseStudentsManager';
 import { shiftLabel } from '../utils/courseShift';
-import { useState } from 'react';
-
-import {
-    useAssignmentOptions,
-    useStudentsForCourse,
-    useAssignStudent,
-    useRemoveStudent,
-} from '../hooks/useAssignments';
 
 export default function StudentCourseAssignmentsView() {
-    const {
-        data: options,
-        isLoading: optionsLoading,
-    } = useAssignmentOptions();
+    const { user } = useContext(AuthContext);
+    const isSuperAdmin = user?.isSuperAdmin === true || user?.roles?.includes('SUPER_ADMIN');
+    const { data: options, isLoading, isError, error } = useAssignmentOptions();
+    const courses = options?.courses ?? [];
 
+    const [institutionId, setInstitutionId] = useState('');
+    const [careerId, setCareerId] = useState('');
     const [courseId, setCourseId] = useState('');
+    const [search, setSearch] = useState('');
 
-    const {
-        data: students,
-        isLoading: studentsLoading,
-    } = useStudentsForCourse(courseId);
-
-    const assignMutation = useAssignStudent();
-    const removeMutation = useRemoveStudent();
-
-    const handleToggle = (student) => {
-        if (student.assigned) {
-            removeMutation.mutate({
-                studentId: student.id,
-                courseId: Number(courseId),
-            });
-
-            return;
-        }
-
-        assignMutation.mutate({
-            studentId: student.id,
-            courseId: Number(courseId),
+    const institutions = useMemo(() => {
+        const map = new Map();
+        courses.forEach(course => {
+            if (course.institutionId && course.institution) {
+                map.set(String(course.institutionId), course.institution.nombre);
+            }
         });
-    };
+        return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'));
+    }, [courses]);
 
-    if (optionsLoading) {
-        return (
-            <p className="text-slate-400">
-                Cargando...
-            </p>
-        );
-    }
+    const careers = useMemo(() => {
+        const map = new Map();
+        courses.forEach(course => {
+            if (isSuperAdmin && institutionId && String(course.institutionId) !== institutionId) return;
+            if (course.careerId && course.career) map.set(String(course.careerId), course.career.nombre);
+        });
+        return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'));
+    }, [courses, institutionId, isSuperAdmin]);
+
+    const visibleCourses = useMemo(() => {
+        const term = search.trim().toLocaleLowerCase('es');
+        return courses.filter(course => {
+            if (isSuperAdmin && institutionId && String(course.institutionId) !== institutionId) return false;
+            if (careerId && String(course.careerId) !== careerId) return false;
+            const haystack = [
+                course.nombre, course.academicYear, shiftLabel(course.shift),
+                course.career?.nombre, course.institution?.nombre,
+            ].filter(value => value != null).join(' ').toLocaleLowerCase('es');
+            return haystack.includes(term);
+        }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es') || b.academicYear - a.academicYear);
+    }, [courses, institutionId, careerId, search, isSuperAdmin]);
+
+    const selectedCourse = courses.find(course => String(course.id) === courseId);
+    const selectClass = 'min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-[#C61515] focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:opacity-50';
 
     return (
-        <div>
-            <div className="mb-6">
-                <h2 className="text-2xl font-bold">
-                    Alumnos por curso
-                </h2>
-
-                <p className="text-sm text-slate-400 mt-2">
-                    Asigná alumnos a los cursos de la institución.
-                </p>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 mb-6">
-                <label className="block text-sm text-slate-400 mb-2">
-                    Curso
-                </label>
-
-                <select
-                    value={courseId}
-                    onChange={(e) =>
-                        setCourseId(e.target.value)
-                    }
-                    className="w-full max-w-md bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm cursor-pointer"
-                >
-                    <option value="">
-                        Seleccioná un curso
-                    </option>
-
-                    {options?.courses?.map((course) => (
-                        <option
-                            key={course.id}
-                            value={course.id}
-                        >
-                            {course.nombre} · Turno {shiftLabel(course.shift)}
-                            {course.career
-                                ? ` — ${course.career.nombre}`
-                                : ''}
-                        </option>
-                    ))}
-                </select>
-            </div>
-
-            {!courseId ? (
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-500">
-                    Seleccioná un curso para administrar sus alumnos.
+        <div className="space-y-6 text-slate-900">
+            <header className="flex flex-wrap items-start gap-3">
+                <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-[#C61515]">
+                    <GraduationCap size={23} />
                 </div>
-            ) : studentsLoading ? (
-                <p className="text-slate-400">
-                    Cargando alumnos...
-                </p>
-            ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="text-left text-slate-400 border-b border-slate-800">
-                                <th className="py-3">
-                                    Nombre
-                                </th>
-                                <th>DNI</th>
-                                <th>Legajo</th>
-                                <th>Estado</th>
-                                <th className="text-right">
-                                    Acción
-                                </th>
-                            </tr>
-                        </thead>
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-900">Alumnos por curso</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                        Seleccioná una carrera y un curso para consultar o actualizar su matrícula.
+                    </p>
+                </div>
+            </header>
 
-                        <tbody>
-                            {students?.map((student) => (
-                                <tr
-                                    key={student.id}
-                                    className="border-b border-slate-900 hover:bg-slate-900/50"
-                                >
-                                    <td className="py-3">
-                                        {student.user.firstName}{' '}
-                                        {student.user.lastName}
-                                    </td>
-
-                                    <td>
-                                        {student.user.dni}
-                                    </td>
-
-                                    <td>
-                                        {student.legajoStudent}
-                                    </td>
-
-                                    <td>
-                                        <span
-                                            className={`px-2 py-1 rounded text-xs ${student.user
-                                                    .isActive
-                                                    ? 'bg-emerald-600/20 text-emerald-400'
-                                                    : 'bg-slate-700 text-slate-400'
-                                                }`}
-                                        >
-                                            {student.user.isActive
-                                                ? 'Activo'
-                                                : 'Inactivo'}
-                                        </span>
-                                    </td>
-
-                                    <td className="text-right">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                handleToggle(
-                                                    student
-                                                )
-                                            }
-                                            disabled={
-                                                assignMutation.isPending ||
-                                                removeMutation.isPending ||
-                                                (!student.assigned &&
-                                                    !student.user
-                                                        .isActive)
-                                            }
-                                            className={`text-xs hover:underline cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${student.assigned
-                                                    ? 'text-red-400'
-                                                    : 'text-emerald-400'
-                                                }`}
-                                        >
-                                            {student.assigned
-                                                ? 'Quitar'
-                                                : 'Asignar'}
-                                        </button>
-                                    </td>
-                                </tr>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className={`grid gap-4 ${isSuperAdmin ? 'lg:grid-cols-3' : 'md:grid-cols-2'}`}>
+                    {isSuperAdmin && (
+                        <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
+                            Institución
+                            <select
+                                className={selectClass}
+                                value={institutionId}
+                                onChange={event => {
+                                    setInstitutionId(event.target.value);
+                                    setCareerId('');
+                                    setCourseId('');
+                                }}
+                            >
+                                <option value="">Todas las instituciones</option>
+                                {institutions.map(([id, label]) => (
+                                    <option key={id} value={id}>{label}</option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
+                    <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
+                        Carrera
+                        <select
+                            className={selectClass}
+                            value={careerId}
+                            onChange={event => { setCareerId(event.target.value); setCourseId(''); }}
+                        >
+                            <option value="">Todas las carreras</option>
+                            {careers.map(([id, label]) => (
+                                <option key={id} value={id}>{label}</option>
                             ))}
+                        </select>
+                    </label>
+                    <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
+                        Curso
+                        <select
+                            className={selectClass}
+                            value={courseId}
+                            onChange={event => setCourseId(event.target.value)}
+                            disabled={isLoading}
+                        >
+                            <option value="">Seleccioná un curso ({visibleCourses.length} disponibles)</option>
+                            {visibleCourses.map(course => (
+                                <option key={course.id} value={course.id}>
+                                    {course.nombre} · {course.academicYear} · {shiftLabel(course.shift)}
+                                    {isSuperAdmin && !institutionId && course.institution?.nombre
+                                        ? ` · ${course.institution.nombre}` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                </div>
+                <div className="mt-4 max-w-xl">
+                    <input
+                        type="search"
+                        aria-label="Buscar cursos disponibles"
+                        value={search}
+                        onChange={event => { setSearch(event.target.value); setCourseId(''); }}
+                        placeholder="Buscar carrera, curso, turno, año o institución..."
+                        className="min-h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm text-slate-900 placeholder:text-slate-500 focus:border-[#C61515] focus:outline-none focus:ring-2 focus:ring-red-100"
+                    />
+                </div>
+                {isError && (
+                    <p role="alert" className="mt-3 text-sm text-red-700">
+                        {error?.response?.data?.message || 'No se pudieron cargar los cursos.'}
+                    </p>
+                )}
+            </section>
 
-                            {students?.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={5}
-                                        className="py-8 text-center text-slate-500"
-                                    >
-                                        No hay alumnos registrados.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+            {selectedCourse ? (
+                <CourseStudentsManager key={selectedCourse.id} course={selectedCourse} />
+            ) : (
+                <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
+                    <UsersRound size={28} className="mx-auto mb-3 text-[#C61515]" />
+                    {isLoading
+                        ? 'Cargando cursos...'
+                        : 'Seleccioná el curso para ver sus alumnos y administrar las asignaciones.'}
                 </div>
             )}
         </div>

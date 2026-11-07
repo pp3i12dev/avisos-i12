@@ -1,4 +1,5 @@
 import { useContext, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useUnreadNotifications } from '../hooks/useNotifications';
 
 import {
@@ -10,7 +11,6 @@ import {
 } from 'react-router-dom';
 
 import {
-    BookOpen,
     ClipboardList,
     Megaphone,
     LogOut,
@@ -67,12 +67,6 @@ const NAVIGATION = [
         end: true,
     },
     {
-        to: '/dashboard/my-subjects',
-        label: 'Mis cursos',
-        Icon: BookOpen,
-        teacherOnly: true,
-    },
-    {
         to: '/dashboard/early-notices',
         label: 'Avisos Tempranos',
         Icon: ClipboardList,
@@ -108,6 +102,7 @@ function SidebarLink({
     return (
         <NavLink
             to={to}
+            state={to === '/dashboard' ? { home: true } : undefined}
             end={end}
             onClick={onNavigate}
             title={collapsed ? label : undefined}
@@ -165,10 +160,13 @@ function SidebarLink({
     );
 }
 
-function UserAvatar({ user, size = 'normal' }) {
+function UserAvatar({ user, size = 'normal', inMenu = false }) {
     return (
         <div
-            className={`flex shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/15 font-bold text-white ${size === 'large'
+            className={`flex shrink-0 items-center justify-center rounded-xl border font-bold ${inMenu
+                    ? 'border-rose-200 bg-rose-50 text-[#B31212]'
+                    : 'border-white/25 bg-white/15 text-white'
+                } ${size === 'large'
                     ? 'h-12 w-12 text-base'
                     : 'h-10 w-10 text-sm'
                 }`}
@@ -196,10 +194,6 @@ export default function DashboardLayout() {
 
     const roles = getRoles(user);
 
-    const isTeacher =
-        roles.includes('TEACHER') ||
-        Boolean(user?.teacherProfile);
-
     const displayRoles = [...roles];
 
     if (
@@ -214,9 +208,7 @@ export default function DashboardLayout() {
             .filter(Boolean)
             .join(' ') || 'Usuario';
 
-    const visibleNavigation = NAVIGATION.filter(
-        (item) => !item.teacherOnly || isTeacher
-    );
+    const visibleNavigation = NAVIGATION;
 
     const currentPage =
         [...visibleNavigation]
@@ -236,7 +228,7 @@ export default function DashboardLayout() {
         directors: 'Directivos', preceptors: 'Preceptores', teachers: 'Docentes',
         students: 'Alumnos', invitations: 'Invitaciones', careers: 'Carreras',
         courses: 'Cursos', subjects: 'Materias', institution: 'Institución',
-        'subject-schedules': 'Horarios de materias', 'my-subjects': 'Mis cursos',
+        'subject-schedules': 'Horarios de materias',
         'early-notices': 'Avisos tempranos',
         'institution-communications': 'Comunicaciones institucionales',
         profile: 'Mi perfil',
@@ -282,6 +274,8 @@ export default function DashboardLayout() {
         setProfileMenuOpen(false);
         try { await revokePushOnLogout(token); }
         catch (error) { console.warn('[Avisos I12] No se pudo desvincular Push de este dispositivo:', error); }
+        // No persistir submenús de la cuenta anterior en un nuevo inicio de sesión.
+        sessionStorage.removeItem('avisosi12.dashboard.section');
         logoutContext();
     };
 
@@ -316,6 +310,7 @@ export default function DashboardLayout() {
                             {/* LOGO */}
                             <Link
                                 to="/dashboard"
+                                state={{ home: true }}
                                 onClick={closeMobileMenu}
                                 className="hidden shrink-0 cursor-pointer items-center gap-3 sm:flex"
                                 aria-label="Ir al panel principal"
@@ -389,7 +384,7 @@ export default function DashboardLayout() {
                                     />
                                 </button>
 
-                                {profileMenuOpen && (
+                                {profileMenuOpen && createPortal(
                                     <>
                                         <button
                                             type="button"
@@ -397,24 +392,25 @@ export default function DashboardLayout() {
                                             onClick={() =>
                                                 setProfileMenuOpen(false)
                                             }
-                                            className="fixed inset-0 z-40 cursor-default"
+                                            className="fixed inset-0 z-[80] cursor-default"
                                         />
 
-                                        <div className="absolute right-0 top-full z-50 mt-3 w-[280px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10">
+                                        <div className="fixed right-3 top-[96px] z-[90] w-[min(320px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20 sm:right-6 lg:top-[124px]" style={{ backgroundColor: '#FFFFFF', color: '#20242B' }}>
 
                                             <div className="border-b border-slate-200 p-4">
                                                 <div className="flex items-center gap-3">
                                                     <UserAvatar
                                                         user={user}
                                                         size="large"
+                                                        inMenu
                                                     />
 
                                                     <div className="min-w-0">
-                                                        <p className="truncate text-sm font-semibold text-slate-900">
+                                                        <p className="truncate text-sm font-bold !text-[#20242B]">
                                                             {fullName}
                                                         </p>
 
-                                                        <p className="mt-1 truncate text-xs text-slate-600">
+                                                        <p className="mt-1 truncate text-xs !text-[#64748B]">
                                                             {user?.email || 'Cuenta Avisos I12'}
                                                         </p>
                                                     </div>
@@ -447,14 +443,14 @@ export default function DashboardLayout() {
                                                 <button
                                                     type="button"
                                                     onClick={handleLogout}
-                                                    className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-left text-sm text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
+                                                    className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-left text-sm text-rose-700 transition-colors hover:bg-rose-50 hover:text-rose-800"
                                                 >
                                                     <LogOut size={18} />
                                                     Cerrar sesión
                                                 </button>
                                             </div>
                                         </div>
-                                    </>
+                                    </>, document.body
                                 )}
                             </div>
                         </div>
@@ -579,6 +575,7 @@ export default function DashboardLayout() {
                                     </button>
                                     <Link
                                         to="/dashboard"
+                                        state={{ home: true }}
                                         className="inline-flex cursor-pointer items-center gap-2 text-slate-600 transition-colors hover:text-rose-700"
                                     >
                                         <LayoutDashboard size={15} />
@@ -597,7 +594,7 @@ export default function DashboardLayout() {
                             </div>
                         )}
 
-                        <main className="mx-auto w-full max-w-[1700px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+                        <main className="i12-workspace mx-auto w-full max-w-[1700px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
                             <Outlet context={{ updateDashboardHeader }} />
                         </main>
                     </div>

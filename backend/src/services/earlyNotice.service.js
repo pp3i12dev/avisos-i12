@@ -288,6 +288,11 @@ const validateAssignment = async (
         assignment.course.institutionId;
 
     checkInstitution(user, institutionId);
+    // Evita que una directora/superadmin asignada al I12 cree un aviso
+    // de otro instituto por manipulación del payload.
+    if (user.institutionId && user.institutionId !== institutionId) {
+        fail(403, 'La asignación corresponde a otra institución');
+    }
 
     if (
         assignment.subject.institutionId !==
@@ -566,10 +571,9 @@ export const earlyNoticeService = {
         }
 
         return repo.listCreationOptions({
-            institutionId: user.isSuperAdmin
-                ? null
-                : user.institutionId,
-
+            // Para Avisos I12, las autoridades trabajan sobre su institución.
+            // Un superadmin sin institución mantiene la consulta global.
+            institutionId: user.institutionId ?? null,
             teacherProfileId,
         });
     },
@@ -577,9 +581,10 @@ export const earlyNoticeService = {
     /**
      * Listado de avisos.
      *
-     * Los estudiantes solo reciben avisos confirmados.
-     * Las autoridades y docentes pueden consultar
-     * los estados del proceso de validación.
+     * Los alumnos reciben notificaciones de avisos PENDING, CONFIRMED
+     * y REJECTED con el estado claramente identificado. Por eso deben
+     * poder consultar los avisos de sus cursos en esos tres estados.
+     * La confirmación docente sigue siendo obligatoria para que sea oficial.
      */
     async list(jwtUser, query = {}) {
         const user = await getContext(jwtUser);
@@ -624,17 +629,8 @@ export const earlyNoticeService = {
         }
 
         if (isStudentOnly(user)) {
-            if (
-                query.status &&
-                query.status !== 'CONFIRMED'
-            ) {
-                fail(
-                    403,
-                    'Los estudiantes solo pueden consultar avisos confirmados'
-                );
-            }
-
-            where.status = 'CONFIRMED';
+            // Visibilidad limitada a cursos propios; los estados se muestran
+            // claramente para no confundir un pendiente con una confirmación.
             where.OR = [
                 { course: { students: { some: { student: { userId: user.id } } } } },
                 { affectedClasses: { some: { teacherSubject: { course: { students: { some: { student: { userId: user.id } } } } } } } },
@@ -719,8 +715,7 @@ export const earlyNoticeService = {
 
         if (
             isStudentOnly(user) &&
-            (notice.status !== 'CONFIRMED' ||
-                !(await repo.isStudentEnrolled(notice.courseId, user.id)) &&
+            (!(await repo.isStudentEnrolled(notice.courseId, user.id)) &&
                 !(await Promise.all((notice.classes || []).map((c) => repo.isStudentEnrolled(c.teacherSubject.course.id, user.id)))).some(Boolean))
         ) {
             fail(404, 'Aviso no encontrado');

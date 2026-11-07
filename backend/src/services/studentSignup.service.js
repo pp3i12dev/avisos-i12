@@ -46,7 +46,7 @@ export async function listSignupRequests(requester, query = {}) {
   const exists = await getPrisma().course.findFirst({ where: { id: courseId, ...inInstitution(requester) }, select: { id: true } });
   if (!exists) fail('Curso inexistente o fuera de tu institución.', 404);
   return getPrisma().user.findMany({
-    where: { ...inInstitution(requester), signupStatus: status,
+    where: { ...inInstitution(requester), deletedAt: null, signupStatus: status,
       studentProfile: { is: { courses: { some: { courseId } } } } },
     select: viewFields,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -66,7 +66,7 @@ export async function listSignupCourseGroups(requester, query = {}) {
       institution: { select: { id: true, nombre: true } },
       career: { select: { id: true, nombre: true } },
       _count: { select: { students: { where: {
-        student: { user: { signupStatus: status } },
+        student: { user: { signupStatus: status, deletedAt: null } },
       } } } },
     },
     orderBy: [{ institution: { nombre: 'asc' } }, { nombre: 'asc' }],
@@ -102,7 +102,7 @@ export async function reviewSignupRequests(requester, body, decision) {
   const db = getPrisma();
   const affected = await db.$transaction(async (tx) => {
     const rows = await tx.user.findMany({
-      where: { id: { in: ids }, ...inInstitution(requester), signupStatus: 'PENDING',
+      where: { id: { in: ids }, ...inInstitution(requester), deletedAt: null, signupStatus: 'PENDING',
         isActive: false, studentProfile: { isNot: null } },
       select: { id: true, email: true, firstName: true, lastName: true, institutionId: true },
     });
@@ -110,7 +110,7 @@ export async function reviewSignupRequests(requester, body, decision) {
       fail('Una o más solicitudes ya fueron revisadas o no pertenecen a tu institución.', 409);
     }
     const result = await tx.user.updateMany({
-      where: { id: { in: ids }, ...inInstitution(requester), signupStatus: 'PENDING',
+      where: { id: { in: ids }, ...inInstitution(requester), deletedAt: null, signupStatus: 'PENDING',
         isActive: false, studentProfile: { isNot: null } },
       data: { signupStatus: decision, isActive: decision === 'APPROVED',
         signupReviewedAt: new Date(), signupReviewedById: requester.id,
@@ -128,7 +128,7 @@ export async function reviewSignupRequests(requester, body, decision) {
           status: decision, reason })
       ));
       results.forEach((result, index) => {
-        if (result.status === 'rejected') console.warn('[Avisos I12][Inscripciones] Correo no entregado para usuario',
+        if (result.status === 'rejected') console.warn('[EduQuest][Inscripciones] Correo no entregado para usuario',
           affected[i + index].id, result.reason?.message);
       });
     }
@@ -136,7 +136,42 @@ export async function reviewSignupRequests(requester, body, decision) {
   return { processed: affected.length, status: decision, ids };
 }
 
-// Se ejecuta después de guardar una solicitud pública, desde React o Unity.
+/**
+ * Retira SOLO una solicitud pública de alumno PENDING, sin borrado físico.
+ * La baja lógica evita destruir evidencia del pedido y los datos de auditoría.
+ * No admite personal institucional ni altas que ya fueron aprobadas.
+ */
+export async function archiveSignupRequest(requester, rawId) {
+  authorize(requester);
+  const id = Number(rawId);
+  if (!Number.isSafeInteger(id) || id < 1) fail('Solicitud inválida.');
+  const db = getPrisma();
+  await db.$transaction(async tx => {
+    const user = await tx.user.findFirst({
+      where: { id, ...inInstitution(requester), deletedAt: null, isActive: false,
+        signupStatus: 'PENDING', isSuperAdmin: false,
+        studentProfile: { isNot: null }, directorProfile: { is: null },
+        preceptorProfile: { is: null }, teacherProfile: { is: null },
+      },
+      select: { id: true, studentProfile: { select: { id: true } } },
+    });
+    if (!user) fail('La solicitud no está pendiente, no existe o no pertenece a tu institución.', 409);
+    const result = await tx.user.updateMany({
+      where: { id, ...inInstitution(requester), deletedAt: null,
+        signupStatus: 'PENDING', isActive: false, isSuperAdmin: false },
+      data: { deletedAt: new Date(), isActive: false,
+        signupReviewedAt: new Date(), signupReviewedById: requester.id,
+        signupReviewReason: 'Solicitud retirada por administración (baja lógica).' },
+    });
+    if (result.count !== 1) fail('La solicitud cambió durante la operación.', 409);
+    await tx.studentCourse.deleteMany({ where: { studentId: user.studentProfile.id } });
+    await tx.refreshToken.deleteMany({ where: { userId: id } });
+    await tx.webPushSubscription.deleteMany({ where: { userId: id } });
+  });
+  return { archived: true, id };
+}
+
+// Se ejecuta después de guardar una solicitud pública desde React.
 // Solo directivos/preceptores de la institución reciben notificación interna y Web Push.
 export async function safeQueueSignupForAuthorities({ studentUserId, institutionId }) {
   try {
@@ -165,6 +200,6 @@ export async function safeQueueSignupForAuthorities({ studentUserId, institution
       }
     });
   } catch (error) {
-    console.error('[Avisos I12][Inscripciones] No se pudo registrar aviso para autoridades:', error);
+    console.error('[EduQuest][Inscripciones] No se pudo registrar aviso para autoridades:', error);
   }
 }

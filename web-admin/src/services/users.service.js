@@ -37,6 +37,10 @@ export const usersService = {
         await api.delete(`/users/${id}`, { params: { role } });
     },
 
+    bulkDeleteStudents: async (ids, confirmation) => {
+        const { data } = await api.post('/users/students/bulk-delete', { ids, confirmation });
+        return data;
+    },
     getRoles: async (id) => {
         const { data } = await api.get(`/users/${id}/roles`);
         return data;

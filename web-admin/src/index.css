@@ -37,3 +37,128 @@ body { margin: 0; min-width: 320px; background: #F7F7F8; color: #20242B; }
 
 /* Avisos I12 — superficies claras para la identidad institucional. */
 :root { --i12-red: #C61515; --i12-red-dark: #B31212; --i12-bg: #F7F7F8; --i12-card: #EEF0F2; --i12-sidebar: #5A606A; --i12-border: #D8DDE3; --i12-text: #22252B; }
+
+
+/* AVISOS I12 · ETAPA 8 · Estilo administrativo claro y glass sutil
+   Se aplica solo al contenido. Header rojo y sidebar gris conservan su identidad. */
+.i12-workspace, .i12-light-page, .i12-light-modal {
+  --i12-glass-edge: rgba(255,255,255,.86);
+  --i12-glass-shadow: 0 3px 12px rgba(31,41,55,.06), inset 0 1px 0 rgba(255,255,255,.92);
+}
+/* Componentes heredados de EduQuest: evitar superficies azul noche. */
+:is(.i12-workspace, .i12-light-page, .i12-light-modal) [class*="bg-slate-950"],
+:is(.i12-workspace, .i12-light-page, .i12-light-modal) [class*="bg-slate-900"],
+:is(.i12-workspace, .i12-light-page, .i12-light-modal) [class*="bg-slate-800"] {
+  background-color: #fff !important;
+  background-image: none !important;
+  border-color: #dce1e7 !important;
+}
+:is(.i12-workspace, .i12-light-page, .i12-light-modal) :is(input:not([type=checkbox]):not([type=radio]),select,textarea) {
+  background-color: #f3f4f6 !important;
+  color: #20242b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: .75rem;
+  color-scheme: light;
+}
+:is(.i12-workspace, .i12-light-page, .i12-light-modal) :is(input,textarea)::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+:is(.i12-workspace, .i12-light-page, .i12-light-modal) :is(input,select,textarea):focus {
+  outline: 2px solid rgba(198,21,21,.22) !important;
+  outline-offset: 1px;
+  border-color: #c61515 !important;
+}
+:is(.i12-workspace, .i12-light-page, .i12-light-modal) [class*="text-slate-100"],
+:is(.i12-workspace, .i12-light-page, .i12-light-modal) [class*="text-slate-200"],
+:is(.i12-workspace, .i12-light-page, .i12-light-modal) [class*="text-slate-300"] {
+  color: #334155 !important;
+}
+:is(.i12-workspace, .i12-light-page, .i12-light-modal) :is(h1,h2,h3,h4,strong)[class*="text-white"],
+:is(.i12-workspace, .i12-light-page, .i12-light-modal) :is(p,span,label,div)[class*="text-white"] {
+  color: #1f2937 !important;
+}
+/* Glassmorphism moderado en botones neutros; los botones rojos de acción y
+   los estados semánticos permanecen sólidos para conservar contraste. */
+:is(.i12-workspace,.i12-light-page,.i12-light-modal) button:is([class*="bg-slate-"],[class*="border-slate-"]):not([class*="bg-red-"]):not([class*="bg-amber-"]):not([class*="bg-green-"]):not([class*="bg-emerald-"]),
+:is(.i12-workspace,.i12-light-page,.i12-light-modal) a:is([class*="bg-slate-"],[class*="border-slate-"]):not([class*="bg-red-"]) {
+  background: linear-gradient(145deg,rgba(255,255,255,.96),rgba(228,232,238,.86)) !important;
+  border: 1px solid var(--i12-glass-edge) !important;
+  box-shadow: var(--i12-glass-shadow) !important;
+  color: #344054 !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+@media (hover:hover) {
+  :is(.i12-workspace,.i12-light-page,.i12-light-modal) button:is([class*="bg-slate-"],[class*="border-slate-"]):not(:disabled):hover,
+  :is(.i12-workspace,.i12-light-page,.i12-light-modal) a:is([class*="bg-slate-"],[class*="border-slate-"]):hover {
+    background: linear-gradient(145deg,#fff,#e8edf3) !important;
+    box-shadow: 0 8px 20px rgba(31,41,55,.12), inset 0 1px 0 #fff !important;
+    transform: translateY(-1px);
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  :is(.i12-workspace,.i12-light-page,.i12-light-modal) :is(button,a) {transition:none !important;transform:none !important}
+}
+
+
+/* AVISOS I12 · ETAPA 9 · Tarjetas glassmorphism institucional.
+   Clase EXCLUSIVA de tarjetas del panel y sus submódulos (no afecta
+   formularios, botones destructivos, header rojo ni sidebar gris). */
+.i12-glass-card {
+  isolation: isolate;
+  position: relative;
+  background: linear-gradient(137deg,
+      rgba(255,255,255,.95) 0%,
+      rgba(255,255,255,.77) 43%,
+      rgba(230,235,243,.74) 100%) !important;
+  border: 1px solid rgba(255,255,255,.96) !important;
+  outline: 1px solid rgba(164,175,191,.30);
+  outline-offset: -2px;
+  box-shadow:
+    0 10px 28px rgba(44,57,79,.095),
+    0 2px 5px rgba(44,57,79,.05),
+    inset 0 1.5px 0 rgba(255,255,255,1),
+    inset 0 -1px 0 rgba(207,218,231,.58) !important;
+  backdrop-filter: blur(16px) saturate(132%);
+  -webkit-backdrop-filter: blur(16px) saturate(132%);
+  transition: transform .24s ease, box-shadow .24s ease,
+    background .24s ease, outline-color .24s ease !important;
+}
+/* Reflejo diagonal de vidrio, sin tapar el contenido ni interceptar clics. */
+.i12-glass-card::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 95% 72% at 0% 0%, rgba(255,255,255,.90), transparent 76%),
+    linear-gradient(122deg, rgba(255,255,255,.34) 0%, rgba(255,255,255,.04) 45%, transparent 65%);
+}
+/* Los hijos siempre visibles sobre el reflejo. */
+.i12-glass-card > * { position: relative; z-index: 1; }
+@media (hover:hover) {
+  .i12-glass-card:hover {
+    transform: translateY(-4px) !important;
+    background: linear-gradient(137deg,
+      rgba(255,255,255,.99),
+      rgba(255,250,250,.83) 50%,
+      rgba(239,232,235,.78)) !important;
+    outline-color: rgba(198,21,21,.27);
+    box-shadow:
+      0 19px 40px rgba(44,57,79,.14),
+      0 4px 12px rgba(198,21,21,.055),
+      inset 0 1.5px 0 rgba(255,255,255,1),
+      inset 0 -1px 0 rgba(220,225,233,.65) !important;
+  }
+}
+.i12-glass-card:focus-visible {
+  outline: 3px solid rgba(198,21,21,.7) !important;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion:reduce) {
+  .i12-glass-card, .i12-glass-card:hover { transition: none !important; transform: none !important; }
+}

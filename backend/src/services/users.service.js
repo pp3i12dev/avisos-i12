@@ -206,6 +206,7 @@ function serializeUser(user, profileField) {
         lastName: user.lastName,
         institutionId: user.institutionId,
         isActive: user.isActive,
+        isSuperAdmin: user.isSuperAdmin === true,
         signupStatus: user.signupStatus ?? null,
         createdAt: user.createdAt,
         profile: user[profileField] ?? null,
@@ -330,6 +331,7 @@ export const createUserService = async (role, body, requester) => {
                 passwordHash,
                 firstName,
                 lastName,
+                telefono: normalizeArgentinePhone(rest.telefono ?? ''),
                 institutionId,
             },
             profileField: config.profileField,
@@ -397,6 +399,9 @@ export const updateUserService = async (
     if (email) userData.email = email;
     if (firstName) userData.firstName = firstName;
     if (lastName) userData.lastName = lastName;
+    if (rest.telefono !== undefined) {
+        userData.telefono = normalizeArgentinePhone(rest.telefono);
+    }
 
     if (password) {
         userData.passwordHash = await hashPassword(password);
@@ -538,29 +543,67 @@ export const toggleUserStatusService = async (
 // ELIMINAR USUARIO
 // ======================================================
 
+// ======================================================
+// ELIMINACIÓN DEFINITIVA CON JERARQUÍA DE PERMISOS
+// ======================================================
+
+const isSuper = requester => requester.isSuperAdmin === true || requester.roles?.includes('SUPER_ADMIN');
+const isDirector = requester => requester.roles?.includes('DIRECTOR');
+const assertDeletionAuthority = (requester) => {
+    if (!isSuper(requester) && !isDirector(requester)) {
+        throw new ServiceError('Solo dirección y superadministración pueden eliminar usuarios.', 403);
+    }
+    if (!isSuper(requester) && !(Number.isSafeInteger(Number(requester.institutionId)) && Number(requester.institutionId) > 0)) {
+        throw new ServiceError('No tenés institución asignada.', 403);
+    }
+};
+const validateTarget = (target, role, requester) => {
+    if (!target) throw new ServiceError('Usuario inexistente o de otra institución.', 404);
+    if (target.id === Number(requester.id)) throw new ServiceError('No podés eliminar tu propia cuenta.', 403);
+    if (target.isSuperAdmin && !isSuper(requester)) throw new ServiceError('Un directivo no puede eliminar un superadministrador.', 403);
+    if (!target[assertRoleConfig(role).profileField]) throw new ServiceError('El usuario no tiene el rol indicado.', 409);
+};
+const convertDeletionError = (error) => {
+    if (['P2003','P2014'].includes(error?.code)) return new ServiceError(
+        'La cuenta tiene avisos, asistencias, invitaciones u otros registros institucionales que deben conservarse. No se eliminó ningún dato. Utilizá Desactivar hasta resolver sus relaciones.', 409
+    );
+    return error;
+};
+
 export const deleteUserService = async (role, id, requester) => {
-    const config = assertRoleConfig(role);
-    assertPermission(requester.roles, config.permissions.delete);
+    assertRoleConfig(role);
+    assertDeletionAuthority(requester);
     const userId = Number(id);
     if (!Number.isSafeInteger(userId) || userId <= 0) throw new ServiceError('Usuario inválido.', 400);
-    if (userId === Number(requester.id)) throw new ServiceError('No podés eliminar tu propia cuenta.', 403);
-
-    const isSuperAdmin = requester.isSuperAdmin === true || requester.roles?.includes('SUPER_ADMIN');
+    const institutionId = isSuper(requester) ? null : Number(requester.institutionId);
     const prisma = getPrisma();
-    const user = await prisma.user.findFirst({
-        where: { id: userId, deletedAt: null, ...(isSuperAdmin ? {} : { institutionId: requester.institutionId }) },
+    const target = await prisma.user.findFirst({
+        where: { id: userId, deletedAt: null, ...(institutionId == null ? {} : { institutionId }) },
         include: { directorProfile: true, preceptorProfile: true, teacherProfile: true, studentProfile: true },
     });
-    if (!user) throw new ServiceError('Usuario no encontrado en tu institución.', 404);
-    if (user.isSuperAdmin) throw new ServiceError('Una cuenta superadministradora no puede eliminarse desde Gestión de usuarios.', 403);
-    // No permitir borrar un usuario con perfil de mayor privilegio usando la vista docente.
-    for (const [otherRole, profile] of Object.entries({
-        director: user.directorProfile, preceptor: user.preceptorProfile,
-        teacher: user.teacherProfile, student: user.studentProfile,
-    })) {
-        if (profile) assertPermission(requester.roles, assertRoleConfig(otherRole).permissions.delete);
+    validateTarget(target, role, requester);
+    if (target.isSuperAdmin) {
+        const activeAdmins = await prisma.user.count({ where: { isSuperAdmin: true, deletedAt: null, isActive: true } });
+        if (activeAdmins <= 1) throw new ServiceError('No se puede eliminar al último superadministrador activo.', 409);
     }
-    await userRepository.archiveUserWithRelations({ id: userId, institutionId: isSuperAdmin ? null : requester.institutionId });
+    try {
+        return await userRepository.deleteUserPermanently({ id: userId, institutionId, callerId: Number(requester.id), actorCanDeleteSuperAdmin: isSuper(requester), expectedProfileField: assertRoleConfig(role).profileField });
+    } catch (error) { throw convertDeletionError(error); }
+};
+
+export const bulkDeleteStudentsService = async (body, requester) => {
+    assertDeletionAuthority(requester);
+    if (body?.confirmation !== 'ELIMINAR') throw new ServiceError('Falta la confirmación de eliminación.', 400);
+    const ids = body?.ids;
+    if (!Array.isArray(ids) || !ids.length || ids.length > 100) throw new ServiceError('Seleccioná entre 1 y 100 alumnos por operación.', 400);
+    const parsed = ids.map(Number);
+    if (parsed.some(id => !Number.isSafeInteger(id) || id <= 0) || new Set(parsed).size !== parsed.length) {
+        throw new ServiceError('La selección contiene IDs inválidos o repetidos.', 400);
+    }
+    if (parsed.includes(Number(requester.id))) throw new ServiceError('No podés eliminar tu propia cuenta.', 403);
+    try {
+        return await userRepository.bulkDeleteStudentsPermanently({ ids: parsed, institutionId: isSuper(requester) ? null : Number(requester.institutionId) });
+    } catch(error) { throw convertDeletionError(error); }
 };
 
 // ======================================================

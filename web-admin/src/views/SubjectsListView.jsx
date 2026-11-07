@@ -344,15 +344,13 @@ export default function SubjectsListView() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-
-
+            <div className="flex flex-wrap items-center justify-end gap-4">
                 <button
                     type="button"
                     onClick={openCreate}
-                    className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                    className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-[#C61515] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#A81010] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C61515]"
                 >
-                    + Agregar materia
+                    + Nueva materia
                 </button>
             </div>
 

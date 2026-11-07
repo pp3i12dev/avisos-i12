@@ -1,4 +1,5 @@
 import { shiftLabel, SHIFTS } from '../utils/courseShift';
+import { createPortal } from 'react-dom';
 import {
     useState,
     useEffect,
@@ -397,11 +398,19 @@ export default function SubjectFormModal({
 
     if (!open) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    // Portal al body para evitar stacking contexts que dejen el modal por debajo del header.
+    // El overlay empieza después de la cabecera (88px móvil, 116px escritorio).
+    return createPortal(
+        <div
+            role="presentation"
+            className="fixed inset-x-0 bottom-0 top-[88px] lg:top-[116px] z-[150] flex items-start justify-center overflow-y-auto bg-black/60 px-3 py-4 sm:px-5"
+        >
             <form
+                role="dialog"
+                aria-modal="true"
+                aria-label={isEditing ? 'Editar materia' : 'Nueva materia'}
                 onSubmit={handleSubmit}
-                className="max-h-[90vh] w-full max-w-2xl space-y-5 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-6 text-white shadow-2xl"
+                className="my-auto max-h-[calc(100dvh-120px)] lg:max-h-[calc(100dvh-148px)] w-full max-w-2xl space-y-5 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-6 text-white shadow-2xl"
             >
                 <div>
                     <h3 className="text-xl font-semibold">
@@ -855,6 +864,7 @@ export default function SubjectFormModal({
                     </button>
                 </div>
             </form>
-        </div>
+        </div>,
+        document.body
     );
 }

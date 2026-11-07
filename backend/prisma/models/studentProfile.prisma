@@ -8,4 +8,5 @@ model StudentProfile {
 
   courses      StudentCourse[]
   attendances  Attendance[]
+  enrollmentMovements EnrollmentMovement[]
 }

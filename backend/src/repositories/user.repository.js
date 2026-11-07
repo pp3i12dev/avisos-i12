@@ -30,7 +30,9 @@ export const listUsersByProfile = ({ institutionId, profileField }) => {
       deletedAt: null,
     },
     include: {
-      [profileField]: true,
+      [profileField]: profileField === 'studentProfile'
+        ? { include: { courses: { include: { course: { include: { career: true } } } } } }
+        : true,
     },
     orderBy: {
       lastName: 'asc',
@@ -202,18 +204,112 @@ export const archiveUserWithRelations = async ({ id, institutionId }) => {
   });
 };
 
-export const deleteUserById = ({
-  id,
-  institutionId,
-}) => {
-  const prisma = getPrisma();
+/**
+ * Borra físicamente un ALUMNO y su información exclusiva, de manera atómica.
+ * Nunca afecta alumnos de otra institución ni usuarios con otros perfiles.
+ * Las relaciones de autoría institucional que no pertenecen al alumno son
+ * protegidas por las FK: si existe una dependencia imprevista se revierte todo.
+ */
+export const deleteStudentPermanently = async ({ id, institutionId }) => {
+  const db = getPrisma();
+  return db.$transaction(async (tx) => {
+    const user = await tx.user.findFirst({
+      where: { id, deletedAt: null, ...(institutionId != null ? { institutionId } : {}) },
+      select: {
+        id: true, isSuperAdmin: true, studentProfile: { select: { id: true } },
+        teacherProfile: { select: { id: true } },
+        directorProfile: { select: { id: true } },
+        preceptorProfile: { select: { id: true } },
+      },
+    });
+    if (!user?.studentProfile) throw Object.assign(new Error('Alumno no encontrado en la institución.'), { status: 404 });
+    if (user.isSuperAdmin || user.teacherProfile || user.directorProfile || user.preceptorProfile) {
+      throw Object.assign(new Error('La cuenta posee otros roles; no se admite su eliminación como alumno.'), { status: 409 });
+    }
 
-  return prisma.user.delete({
-    where: {
-      id,
-      institutionId,
-    },
+    const studentId = user.studentProfile.id;
+    await tx.attendance.deleteMany({ where: { studentId } });
+    await tx.studentCourse.deleteMany({ where: { studentId } });
+    // Borra avisos dirigidos al alumno, solicitudes y sus entregas/email/push (por CASCADE).
+    await tx.notification.deleteMany({ where: { OR: [{ userId: id }, { signupUserId: id }] } });
+    await tx.webPushSubscription.deleteMany({ where: { userId: id } });
+    await tx.userDevice.deleteMany({ where: { userId: id } });
+    await tx.refreshToken.deleteMany({ where: { userId: id } });
+    await tx.passwordResetToken.deleteMany({ where: { userId: id } });
+    await tx.studentProfile.delete({ where: { id: studentId } });
+    // Las relaciones ajenas a un alumno normal quedan protegidas por restricciones SQL.
+    await tx.user.delete({ where: { id } });
+    return { deleted: true, id };
   });
+};
+
+/**
+ * Baja física controlada. No elimina avisos, comunicaciones o asistencia
+ * firmados por personal: si hay una relación de auditoría restrictiva,
+ * PostgreSQL bloquea la operación y se revierte la transacción.
+ */
+export async function deleteAccountTx(tx, id, institutionId = null, options = {}) {
+  const user = await tx.user.findFirst({
+    where: { id, deletedAt: null, ...(institutionId == null ? {} : { institutionId }) },
+    include: PROFILE_INCLUDE,
+  });
+  if (!user) throw Object.assign(new Error('Usuario no encontrado en la institución.'), { status: 404 });
+  if (options.callerId === id) throw Object.assign(new Error('No podés eliminar tu propia cuenta.'), { status: 403 });
+  if (options.expectedProfileField && !user[options.expectedProfileField]) throw Object.assign(new Error('Cambió el rol de esta cuenta. Actualizá la lista.'), { status: 409 });
+  if (user.isSuperAdmin && options.actorCanDeleteSuperAdmin === false) throw Object.assign(new Error('Un directivo no puede eliminar superadministradores.'), { status: 403 });
+
+  if (user.isSuperAdmin) {
+    const activeAdmins = await tx.user.count({where:{isSuperAdmin:true,isActive:true,deletedAt:null}});
+    if(activeAdmins<=1) throw Object.assign(new Error('No se puede eliminar al último superadministrador activo.'),{status:409});
+  }
+  // Datos privados de la cuenta y entregas de correo/push (relaciones en cascada).
+  await tx.notification.deleteMany({ where: { OR: [{ userId: id }, { signupUserId: id }] } });
+  await tx.refreshToken.deleteMany({ where: { userId: id } });
+  await tx.webPushSubscription.deleteMany({ where: { userId: id } });
+  await tx.userDevice.deleteMany({ where: { userId: id } });
+  await tx.passwordResetToken.deleteMany({ where: { userId: id } });
+
+  if (user.studentProfile) {
+    await tx.attendance.deleteMany({ where: { studentId: user.studentProfile.id } });
+    await tx.studentCourse.deleteMany({ where: { studentId: user.studentProfile.id } });
+    // EnrollmentMovement se elimina por su FK CASCADE.
+  }
+  if (user.teacherProfile) {
+    // Si hay avisos dependientes de TeacherSubject, esta operación falla
+    // sin borrar nada: priorizamos trazabilidad académica y la auditoría.
+    await tx.teacherSubject.deleteMany({ where: { teacherId: user.teacherProfile.id } });
+  }
+  // Otras relaciones (avisos creados, confirmaciones, invitaciones y asistencia
+  // registrada por preceptores) tienen FKs que protegen el historial.
+  await tx.user.delete({ where: { id } });
+  return { id };
+}
+
+export const deleteUserPermanently = async ({ id, institutionId, callerId, actorCanDeleteSuperAdmin, expectedProfileField }) => {
+  const prisma = getPrisma();
+  return prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(8701, 2207)`;
+    return deleteAccountTx(tx, id, institutionId, { callerId, actorCanDeleteSuperAdmin, expectedProfileField });
+  }, { maxWait: 10000, timeout: 20000 });
+};
+
+export const bulkDeleteStudentsPermanently = async ({ ids, institutionId }) => {
+  const prisma = getPrisma();
+  return prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(8701, 2207)`;
+    const users = await tx.user.findMany({
+      where: { id: { in: ids }, deletedAt: null, ...(institutionId == null ? {} : { institutionId }) },
+      include: PROFILE_INCLUDE,
+    });
+    if (users.length !== ids.length) throw Object.assign(new Error('Cambió el listado de alumnos. Actualizá antes de eliminar.'), { status: 409 });
+    for (const user of users) {
+      if (!user.studentProfile || user.isSuperAdmin || user.directorProfile || user.teacherProfile || user.preceptorProfile) {
+        throw Object.assign(new Error('La selección incluye una cuenta que no es exclusivamente alumno.'), { status: 409 });
+      }
+    }
+    for (const id of ids) await deleteAccountTx(tx, id, institutionId);
+    return { deleted: ids.length };
+  }, { maxWait: 15000, timeout: 120000 });
 };
 
 // Reemplaza la matrícula actual del alumno por el curso indicado
@@ -234,8 +330,8 @@ export const assignStudentCourse = async ({
     });
     if (!profile) throw Object.assign(new Error('Alumno inexistente'), { status: 404 });
     if (courseId != null) {
-      const target = await tx.course.findUnique({ where: { id: courseId }, select: { institutionId: true } });
-      if (!target || target.institutionId !== profile.user.institutionId) {
+      const target = await tx.course.findUnique({ where: { id: courseId }, select: { institutionId: true, isActive: true } });
+      if (!target || !target.isActive || target.institutionId !== profile.user.institutionId) {
         throw Object.assign(new Error('El curso no pertenece a la institución del alumno'), { status: 400 });
       }
     }

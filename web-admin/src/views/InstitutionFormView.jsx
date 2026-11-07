@@ -33,10 +33,10 @@ const EMPTY_FORM = {
 };
 
 const inputClass =
-    'w-full rounded-xl border border-slate-700/80 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 outline-none transition-all duration-200 hover:border-slate-600 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-50';
+    'w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-500 outline-none transition-all duration-200 hover:border-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 disabled:cursor-not-allowed disabled:opacity-50';
 
 const labelClass =
-    'mb-2 block text-sm font-medium text-slate-300';
+    'mb-2 block text-sm font-medium text-slate-700';
 
 export default function InstitutionFormView() {
     const navigate = useNavigate();
@@ -236,49 +236,11 @@ export default function InstitutionFormView() {
             : null);
 
     return (
-        <div className="mx-auto w-full max-w-3xl px-3 py-5 text-slate-100 sm:px-6 sm:py-8">
-            {/* NAVEGACIÓN */}
-            <button
-                type="button"
-                onClick={goBack}
-                className="group mb-7 inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-400 transition-colors hover:text-blue-400"
-            >
-                <ArrowLeft
-                    size={17}
-                    className="transition-transform group-hover:-translate-x-1"
-                />
-                Volver a instituciones
-            </button>
-
-            {/* ENCABEZADO */}
-            <div className="mb-8 flex items-start gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10 text-blue-400 shadow-lg shadow-blue-950/20">
-                    <Building2 size={28} strokeWidth={1.8} />
-                </div>
-
-                <div className="min-w-0">
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-400">
-                        Gestión institucional
-                    </p>
-
-                    <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                        {editing
-                            ? 'Editar institución'
-                            : 'Nueva institución'}
-                    </h1>
-
-                    <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                        {editing
-                            ? 'Actualizá la información general, ubicación y datos de contacto de la institución.'
-                            : 'Completá los datos necesarios para incorporar una nueva institución a EduQuest.'}
-                    </p>
-                </div>
-            </div>
-
+        <div className="i12-light-page mx-auto w-full max-w-4xl px-3 py-2 text-slate-900 sm:px-6 sm:py-4">
             {/* FORMULARIO */}
             <form
                 onSubmit={handleSubmit}
-                className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/95 shadow-2xl shadow-black/10"
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-lg shadow-slate-200/60"
             >
                 {/* SECCIÓN: DATOS INSTITUCIONALES */}
                 <section className="p-5 sm:p-7">
@@ -509,7 +471,7 @@ export default function InstitutionFormView() {
             </form>
 
             <p className="mt-5 text-center text-xs text-slate-600">
-                EduQuest · Administración institucional
+                Avisos I12 · Administración institucional
             </p>
         </div>
     );

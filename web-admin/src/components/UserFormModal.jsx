@@ -7,6 +7,7 @@ import { useUserRoles, useUpdateUserRoles } from '../hooks/useUsers';
 const baseEmpty = {
     dni: '',
     email: '',
+    telefono: '',
     firstName: '',
     lastName: '',
     password: '',
@@ -96,6 +97,7 @@ export default function UserFormModal({
             setForm({
                 dni: initialData.dni ?? '',
                 email: initialData.email ?? '',
+                telefono: initialData.telefono ?? '',
                 firstName: initialData.firstName ?? '',
                 lastName: initialData.lastName ?? '',
                 password: '',
@@ -232,11 +234,11 @@ export default function UserFormModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 overflow-y-auto py-8">
+        <div className="i12-light-modal fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto px-3 py-6">
 
             <form
                 onSubmit={handleSubmit}
-                className="bg-slate-900 border border-slate-800 rounded-xl p-6 w-full max-w-md space-y-4"
+                className="w-full max-w-xl space-y-4 rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl"
             >
 
                 {/* ========================= */}
@@ -309,6 +311,21 @@ export default function UserFormModal({
                 />
 
                 {/* ========================= */}
+                {/* TELEFONO OPCIONAL: todos los perfiles */}
+                <label className="block space-y-1 text-sm font-medium text-slate-700">
+                    <span>Teléfono (opcional)</span>
+                    <input
+                        name="telefono"
+                        type="tel"
+                        value={form.telefono ?? ''}
+                        onChange={handleChange}
+                        placeholder="Ej. +54 9 221 456-7890"
+                        autoComplete="tel"
+                        maxLength={35}
+                        className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/15"
+                    />
+                </label>
+
                 {/* EMAIL */}
                 {/* ========================= */}
 

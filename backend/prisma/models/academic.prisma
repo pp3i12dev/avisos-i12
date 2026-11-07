@@ -43,6 +43,7 @@ model Career {
 }
 
 model Course {
+  isActive Boolean @default(true)
   id Int @id @default(autoincrement())
   nombre String
   academicYear Int @default(2026)
@@ -60,6 +61,7 @@ model Course {
   invitations Invitation[]
   earlyNotices EarlyNotice[]
   institutionEvents InstitutionEventCourse[]
+  @@index([institutionId, isActive])
   @@index([institutionId, careerId, academicYear, shift])
 }
 

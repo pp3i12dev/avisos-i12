@@ -5,6 +5,7 @@ import {
     updateUserService,
     toggleUserStatusService,
     deleteUserService,
+    bulkDeleteStudentsService,
     getUserWithRolesService,
     updateUserRolesService,
     getMyProfileService,
@@ -82,6 +83,13 @@ export const deleteUser = async (req, res) => {
     } catch (error) {
         return handleServiceError(error, res);
     }
+};
+
+// Eliminación masiva de alumnos verificada en el servidor (1 a 100 por operación).
+export const bulkDeleteStudents = async (req, res) => {
+    try {
+        return res.json(await bulkDeleteStudentsService(req.body, req.user));
+    } catch (error) { return handleServiceError(error, res); }
 };
 
 // ======================================================

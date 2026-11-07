@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(readStoredToken);
 
     const loginContext = useCallback((userData, tokenData) => {
+        sessionStorage.removeItem('avisosi12.dashboard.section');
         setUser(userData);
         setToken(tokenData);
 
@@ -118,6 +119,7 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const logoutContext = useCallback(() => {
+        sessionStorage.removeItem('avisosi12.dashboard.section');
         setUser(null);
         setToken(null);
 

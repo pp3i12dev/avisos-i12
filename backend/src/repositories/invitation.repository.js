@@ -55,8 +55,14 @@ export const findUserById = (id) => {
 export const createUserFromInvitation = ({ invitationId, userCreateData }) => {
     const prisma = getPrisma();
     return prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({ data: userCreateData });
-        await tx.invitation.update({ where: { id: invitationId }, data: { isUsed: true } });
-        return user;
+        // El token se consume atómicamente para evitar dos registros simultáneos.
+        const claim = await tx.invitation.updateMany({
+            where: { id: invitationId, isUsed: false, expiresAt: { gt: new Date() } },
+            data: { isUsed: true },
+        });
+        if (claim.count !== 1) {
+            throw Object.assign(new Error('La invitación ya se utilizó o venció.'), { status: 409 });
+        }
+        return tx.user.create({ data: userCreateData });
     });
 };

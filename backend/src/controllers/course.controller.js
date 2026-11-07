@@ -1,3 +1,5 @@
+import { previewCourseDeletion, setCourseActive, deleteCoursePermanently } from '../services/courseLifecycle.service.js';
+import { previewCoursePromotion, executeCoursePromotion } from '../services/coursePromotion.service.js';
 import {
     listCoursesService, createCourseService, updateCourseService, deleteCourseService,
 } from '../services/course.service.js';
@@ -34,4 +36,25 @@ export const deleteCourse = async (req, res) => {
     } catch (error) {
         return handleServiceError(error, res);
     }
+};
+export async function previewPromotion(req,res) {
+    try { return res.json(await previewCoursePromotion(req.query,req.user)); }
+    catch(error){ return handleServiceError(error,res); }
+}
+export async function executePromotion(req,res) {
+    try { return res.json(await executeCoursePromotion(req.body,req.user)); }
+    catch(error){ return handleServiceError(error,res); }
+}
+
+export const getCourseDeletionPreview = async (req, res) => {
+  try { return res.json(await previewCourseDeletion(req.params.id, req.user)); }
+  catch(error) { return handleServiceError(error,res); }
+};
+export const changeCourseActive = async (req,res) => {
+  try { return res.json(await setCourseActive(req.params.id,req.body?.isActive,req.user)); }
+  catch(error) { return handleServiceError(error,res); }
+};
+export const deleteCourseWithOptions = async (req,res) => {
+  try { return res.json(await deleteCoursePermanently(req.params.id,req.body,req.user)); }
+  catch(error) { return handleServiceError(error,res); }
 };

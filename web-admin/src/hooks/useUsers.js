@@ -65,3 +65,15 @@ export function useUpdateUserRoles() {
         },
     });
 }
+
+export function useBulkDeleteStudents() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ids,confirmation}) => usersService.bulkDeleteStudents(ids, confirmation),
+        onSuccess: () => {
+            queryClient.invalidateQueries({queryKey:['users']});
+            queryClient.invalidateQueries({queryKey:['dashboard-summary']});
+            queryClient.invalidateQueries({queryKey:['courses-admin']});
+        },
+    });
+}

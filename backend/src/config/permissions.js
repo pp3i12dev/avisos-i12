@@ -27,7 +27,7 @@ export const PERMISSIONS = {
     'teacher:create': ['DIRECTOR', 'PRECEPTOR'],
     'teacher:edit': ['DIRECTOR', 'PRECEPTOR'],
     'teacher:deactivate': ['DIRECTOR', 'PRECEPTOR'],
-    'teacher:delete': ['DIRECTOR', 'PRECEPTOR'],
+    'teacher:delete': ['DIRECTOR'],
 
     'student:list': ['DIRECTOR', 'PRECEPTOR', 'TEACHER'],
     'student:create': ['DIRECTOR', 'PRECEPTOR'],
@@ -35,9 +35,10 @@ export const PERMISSIONS = {
     'student:enroll': ['DIRECTOR', 'PRECEPTOR'],
     'student:deactivate': ['DIRECTOR', 'PRECEPTOR'],
     'student:reactivate': ['DIRECTOR', 'PRECEPTOR'],
-    'student:delete': ['DIRECTOR', 'PRECEPTOR'],
+    'student:delete': ['DIRECTOR'],
 
     'grade:manage': ['TEACHER'],
+    'subjectContent:manage': ['TEACHER', 'PRECEPTOR', 'DIRECTOR'],
     'evaluation:manage': ['TEACHER'],
     'tracking:manage': ['TEACHER'],
     'activity:manage': ['TEACHER'],
@@ -52,6 +53,7 @@ export const PERMISSIONS = {
     'invitation:list': ['DIRECTOR', 'PRECEPTOR', 'TEACHER'],
     'invitation:cancel': ['DIRECTOR', 'PRECEPTOR', 'TEACHER'],
 
+    'game:play': ['STUDENT'],
     'stats:viewSelf': ['STUDENT'],
     'profile:editSelf': [
         'DIRECTOR',

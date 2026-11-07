@@ -34,3 +34,13 @@ export function useDeleteCourse() {
         },
     });
 }
+export function useSetCourseStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: courseAdminService.setActive,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courses-admin'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    }
+  });
+}

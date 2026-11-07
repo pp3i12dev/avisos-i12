@@ -225,6 +225,28 @@ export const earlyNoticeRepository = {
                 : {}),
         };
 
+        // Los docentes se consultan independientemente de sus asignaciones.
+        // Una cuenta docente creada recientemente puede aparecer en el selector
+        // aunque todavía no tenga materia/curso/horario asignados.
+        const registeredTeachers = await prisma.teacherProfile.findMany({
+            where: {
+                user: {
+                    isActive: true,
+                    deletedAt: null,
+                    ...(institutionId !== null ? { institutionId } : {}),
+                },
+                ...(teacherProfileId !== null ? { id: teacherProfileId } : {}),
+            },
+            select: {
+                id: true,
+                userId: true,
+                user: {
+                    select: { id: true, firstName: true, lastName: true, institutionId: true },
+                },
+            },
+            orderBy: { user: { lastName: 'asc' } },
+        });
+
         const assignments = await prisma.teacherSubject.findMany({
             where: assignmentWhere,
 
@@ -478,6 +500,12 @@ export const earlyNoticeRepository = {
         }
 
         return {
+            teachers: registeredTeachers.map(t => ({
+                id: t.user.id,
+                teacherProfileId: t.id,
+                name: `${t.user.firstName} ${t.user.lastName}`.trim(),
+                user: t.user,
+            })),
             institutions: [
                 ...institutionMap.values(),
             ].sort((a, b) =>

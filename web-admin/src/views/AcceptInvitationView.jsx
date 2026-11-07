@@ -1,177 +1,187 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, CheckCircle2, LoaderCircle, MailCheck, ShieldCheck, UserPlus } from 'lucide-react';
+import api from '../api/axios';
+import logo from '../assets/images/i12-logo.png';
+import { courseLabel } from '../utils/courseShift';
 
 const ROLE_LABELS = {
-    DIRECTOR: 'Directivo',
-    PRECEPTOR: 'Preceptor',
-    TEACHER: 'Docente',
-    STUDENT: 'Alumno',
+  DIRECTOR: 'Directivo/a',
+  PRECEPTOR: 'Preceptor/a',
+  TEACHER: 'Docente',
+  STUDENT: 'Alumno/a',
 };
+const empty = {
+  firstName: '', lastName: '', dni: '', telefono: '', password: '', repeatPassword: '',
+  legajo: '', specialty: '', shift: '', position: '', careerId: '', courseId: '',
+};
+const fieldStyle = 'mt-1.5 w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-3 text-sm text-slate-900 placeholder:text-slate-500 outline-none transition focus:border-[#C61515] focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-slate-100';
 
-const inputClass =
-    'w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm';
+function Input({ label, name, value, onChange, type = 'text', required = true, ...rest }) {
+  return <label className="block text-sm font-medium text-slate-700">
+    {label}{required && <span className="ml-1 text-red-600">*</span>}
+    <input className={fieldStyle} type={type} name={name} value={value} onChange={onChange} required={required} {...rest} />
+  </label>;
+}
+function MessageScreen({ title, children, success = false }) {
+  return <div className="min-h-screen bg-[#F7F7F8] px-4 py-10 flex items-center justify-center">
+    <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 shadow-xl text-center">
+      {success ? <CheckCircle2 className="mx-auto text-emerald-600" size={40} /> : <MailCheck className="mx-auto text-[#C61515]" size={40} />}
+      <h1 className="mt-4 text-2xl font-bold text-slate-900">{title}</h1>
+      <div className="mt-3 text-sm leading-6 text-slate-600">{children}</div>
+      <Link to="/login" className="mt-6 inline-flex rounded-xl bg-[#C61515] px-5 py-3 font-semibold text-white hover:bg-red-800">Ir al inicio de sesión</Link>
+    </div>
+  </div>;
+}
 
 export default function AcceptInvitationView() {
-    const { token } = useParams();
-    const navigate = useNavigate();
+  const { token } = useParams();
+  const navigate = useNavigate();
+  const [invitation, setInvitation] = useState(null);
+  const [values, setValues] = useState(empty);
+  const [careers, setCareers] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
 
-    const [invitation, setInvitation] = useState(null);
-    const [loadError, setLoadError] = useState('');
-    const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    api.get(`/invitations/${encodeURIComponent(token)}`)
+      .then(({ data }) => {
+        if (!alive) return;
+        setInvitation(data);
+        if (data.course) setValues(v => ({ ...v, careerId: data.course.careerId == null ? 'none' : String(data.course.careerId), courseId: String(data.course.id) }));
+      })
+      .catch(e => { if (alive) setLoadError(e.response?.data?.message || 'No se pudo validar el enlace.'); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [token]);
 
-    const [form, setForm] = useState({
-        firstName: '',
-        lastName: '',
-        dni: '',
-        password: '',
-        legajo: '',
-        specialty: '',
-        shift: '',
-        position: '',
-    });
-    const [submitError, setSubmitError] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-    const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (!invitation || invitation.role !== 'STUDENT') return;
+    let alive = true;
+    api.get(`/public/institutions/${invitation.institution.id}/careers`)
+      .then(({ data }) => { if (alive) setCareers(Array.isArray(data) ? data : []); })
+      .catch(() => { if (alive) setLoadError('No se pudieron cargar las carreras.'); });
+    return () => { alive = false; };
+  }, [invitation]);
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                const res = await fetch(`${API_URL}/invitations/${token}`);
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data.message || data.error || 'Invitación inválida');
-                setInvitation(data);
-            } catch (err) {
-                setLoadError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-        load();
-    }, [token]);
+  useEffect(() => {
+    if (!invitation || invitation.role !== 'STUDENT' || !values.careerId) return;
+    let alive = true;
+    api.get(`/public/institutions/${invitation.institution.id}/courses`, { params: { careerId: values.careerId } })
+      .then(({ data }) => { if (alive) setCourses(Array.isArray(data) ? data : []); })
+      .catch(() => { if (alive) setLoadError('No se pudieron cargar los cursos de la carrera.'); });
+    return () => { alive = false; };
+  }, [invitation, values.careerId]);
 
-    const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const field = e => {
+    const { name, value } = e.target;
+    setError('');
+    setValues(v => ({ ...v, [name]: value, ...(name === 'careerId' ? { courseId: '' } : {}) }));
+  };
+  const submit = async e => {
+    e.preventDefault();
+    setError('');
+    if (values.password !== values.repeatPassword) return setError('Las contraseñas no coinciden.');
+    if (values.password.length < 8) return setError('La contraseña debe tener al menos 8 caracteres.');
+    if (invitation.role === 'STUDENT' && !values.courseId) return setError('Seleccioná carrera y curso.');
+    setSaving(true);
+    try {
+      const { repeatPassword, ...data } = values;
+      await api.post(`/invitations/${encodeURIComponent(token)}/accept`, data);
+      setDone(true);
+    } catch (err) {
+      setError(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar el registro.');
+    } finally { setSaving(false); }
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setSubmitError('');
-        setIsSaving(true);
+  if (loading) return <MessageScreen title="Verificando invitación..."><LoaderCircle size={24} className="mx-auto animate-spin" /></MessageScreen>;
+  if (loadError && !invitation) return <MessageScreen title="Invitación no disponible">{loadError}</MessageScreen>;
+  if (done) return <MessageScreen title="¡Cuenta habilitada!" success>
+    Completaste tu registro mediante una invitación institucional. Tu cuenta ya está activa y podés iniciar sesión sin esperar aprobación.
+  </MessageScreen>;
 
-        // Solo mandamos los campos que corresponden al rol
-        const payload = {
-            firstName: form.firstName,
-            lastName: form.lastName,
-            dni: form.dni,
-            password: form.password,
-            ...(['TEACHER', 'PRECEPTOR', 'STUDENT'].includes(invitation.role) && { legajo: form.legajo }),
-            ...(invitation.role === 'TEACHER' && { specialty: form.specialty }),
-            ...(invitation.role === 'PRECEPTOR' && { shift: form.shift }),
-            ...(invitation.role === 'DIRECTOR' && { position: form.position }),
-        };
-
-        try {
-            const res = await fetch(`${API_URL}/invitations/${token}/accept`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.message || data.error || 'No se pudo crear la cuenta');
-            setDone(true);
-            setTimeout(() => navigate('/login'), 2500);
-        } catch (err) {
-            setSubmitError(err.message);
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const wrapper = 'min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4';
-
-    if (loading) {
-        return <div className={wrapper}><p className="text-slate-400">Verificando invitación...</p></div>;
-    }
-
-    if (loadError) {
-        return (
-            <div className={wrapper}>
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm text-center space-y-3">
-                    <h2 className="text-lg font-semibold">No se puede usar esta invitación</h2>
-                    <p className="text-sm text-red-400">{loadError}</p>
-                    <button onClick={() => navigate('/login')} className="text-sm text-purple-400 hover:underline">
-                        Ir al login
-                    </button>
-                </div>
+  const student = invitation.role === 'STUDENT';
+  const presetCourse = Boolean(invitation.course);
+  return <main className="min-h-screen bg-[#F7F7F8] px-4 py-8 sm:py-12 text-slate-900">
+    <div className="mx-auto w-full max-w-3xl">
+      <button type="button" onClick={() => navigate('/login')} className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-[#C61515] hover:underline"><ArrowLeft size={18} /> Volver al inicio de sesión</button>
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-white to-red-50 p-6 sm:p-8">
+          <div className="flex flex-wrap items-center gap-4">
+            <img src={logo} alt="Logotipo del ISFT Nº12" className="h-16 w-16 rounded-full object-contain" />
+            <div className="min-w-0">
+              <div className="text-xs font-bold uppercase tracking-widest text-[#C61515]">ISFT Nº12 · Invitación institucional</div>
+              <h1 className="mt-1 text-2xl font-bold text-slate-900">Completá tu registro</h1>
+              <p className="mt-1 text-sm text-slate-600">{invitation.institution?.nombre || 'Instituto Superior de Formación Técnica Nº12'}</p>
             </div>
-        );
-    }
-
-    if (done) {
-        return (
-            <div className={wrapper}>
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm text-center space-y-2">
-                    <h2 className="text-lg font-semibold">¡Cuenta creada!</h2>
-                    <p className="text-sm text-slate-400">Te estamos llevando al login...</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className={wrapper}>
-            <form
-                onSubmit={handleSubmit}
-                className="bg-slate-900 border border-slate-800 rounded-xl p-6 w-full max-w-sm space-y-4"
-            >
-                <div>
-                    <h2 className="text-lg font-semibold">Completá tu registro</h2>
-                    <p className="text-sm text-slate-400">
-                        {invitation.email} · {ROLE_LABELS[invitation.role]}
-                    </p>
-                </div>
-
-                <input className={inputClass} placeholder="Nombre" value={form.firstName}
-                    onChange={setField('firstName')} required />
-                <input className={inputClass} placeholder="Apellido" value={form.lastName}
-                    onChange={setField('lastName')} required />
-                <input className={inputClass} placeholder="DNI" value={form.dni}
-                    onChange={setField('dni')} required />
-                <input className={inputClass} type="password" placeholder="Contraseña" value={form.password}
-                    onChange={setField('password')} required minLength={8} />
-
-                {['TEACHER', 'PRECEPTOR', 'STUDENT'].includes(invitation.role) && (
-                    <input className={inputClass} placeholder="Legajo" value={form.legajo}
-                        onChange={setField('legajo')} required />
-                )}
-                {invitation.role === 'TEACHER' && (
-                    <input className={inputClass} placeholder="Especialidad" value={form.specialty}
-                        onChange={setField('specialty')} />
-                )}
-                {invitation.role === 'PRECEPTOR' && (
-                    <input className={inputClass} placeholder="Turno" value={form.shift}
-                        onChange={setField('shift')} />
-                )}
-                {invitation.role === 'DIRECTOR' && (
-                    <input className={inputClass} placeholder="Cargo" value={form.position}
-                        onChange={setField('position')} />
-                )}
-
-                {submitError && (
-                    <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded px-3 py-2">
-                        {submitError}
-                    </p>
-                )}
-
-                <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="w-full px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
-                >
-                    {isSaving ? 'Creando cuenta...' : 'Crear cuenta'}
-                </button>
-            </form>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 font-semibold text-red-700">{ROLE_LABELS[invitation.role] || invitation.role}</span>
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600">{invitation.email}</span>
+          </div>
         </div>
-    );
+        <form onSubmit={submit} className="space-y-7 p-6 sm:p-8">
+          <section className="space-y-4">
+            <h2 className="flex items-center gap-2 text-base font-bold text-slate-900"><UserPlus size={20} className="text-[#C61515]" /> Datos personales</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="Nombre" name="firstName" value={values.firstName} onChange={field} autoComplete="given-name" maxLength={100} />
+              <Input label="Apellido" name="lastName" value={values.lastName} onChange={field} autoComplete="family-name" maxLength={100} />
+              <Input label="DNI" name="dni" value={values.dni} onChange={field} inputMode="numeric" pattern="[0-9]{7,9}" maxLength={9} />
+              <Input label="Teléfono (opcional)" name="telefono" type="tel" value={values.telefono} onChange={field} autoComplete="tel" maxLength={35} required={false} />
+              <Input label="Contraseña" name="password" type="password" value={values.password} onChange={field} autoComplete="new-password" minLength={8} />
+              <Input label="Repetí la contraseña" name="repeatPassword" type="password" value={values.repeatPassword} onChange={field} autoComplete="new-password" minLength={8} />
+            </div>
+          </section>
+          <section className="space-y-4 border-t border-slate-200 pt-6">
+            <h2 className="text-base font-bold text-slate-900">Datos del perfil: {ROLE_LABELS[invitation.role] || invitation.role}</h2>
+            <label className="block text-sm font-medium text-slate-700">Institución asignada
+              <input className={fieldStyle} value={invitation.institution?.nombre || ''} disabled readOnly />
+            </label>
+            {invitation.role === 'DIRECTOR' && <Input label="Cargo (opcional)" name="position" value={values.position} onChange={field} required={false} placeholder="Ej.: Directora" maxLength={100} />}
+            {invitation.role === 'PRECEPTOR' && <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="Legajo de preceptor" name="legajo" value={values.legajo} onChange={field} maxLength={60} />
+              <label className="block text-sm font-medium text-slate-700">Turno (opcional)
+                <select className={fieldStyle} name="shift" value={values.shift} onChange={field}><option value="">Sin especificar</option><option value="MANANA">Mañana</option><option value="TARDE">Tarde</option><option value="NOCHE">Noche</option></select>
+              </label>
+            </div>}
+            {invitation.role === 'TEACHER' && <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="Legajo de docente" name="legajo" value={values.legajo} onChange={field} maxLength={60} />
+              <Input label="Especialidad (opcional)" name="specialty" value={values.specialty} onChange={field} required={false} maxLength={150} />
+            </div>}
+            {student && <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium text-slate-700">Carrera <span className="text-red-600">*</span>
+                <select className={fieldStyle} name="careerId" value={values.careerId} onChange={field} disabled={presetCourse} required>
+                  <option value="">Seleccioná una carrera</option>
+                  {careers.map(c => <option key={c.id} value={String(c.id)}>{c.nombre}</option>)}
+                  <option value="none">Cursos sin carrera asignada</option>
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-slate-700">Curso <span className="text-red-600">*</span>
+                <select className={fieldStyle} name="courseId" value={values.courseId} onChange={field} disabled={presetCourse || !values.careerId} required>
+                  <option value="">Seleccioná un curso</option>
+                  {courses.map(c => <option key={c.id} value={String(c.id)}>{courseLabel(c)}</option>)}
+                  {presetCourse && !courses.some(c => c.id === invitation.course.id) && <option value={String(invitation.course.id)}>{courseLabel(invitation.course)}</option>}
+                </select>
+              </label>
+              <div className="sm:col-span-2"><Input label="Legajo (opcional)" name="legajo" value={values.legajo} onChange={field} required={false} placeholder="Se generará automáticamente si no tenés legajo" /></div>
+              {presetCourse && <p className="sm:col-span-2 text-sm text-slate-600">El curso fue asignado por quien envió la invitación.</p>}
+            </div>}
+          </section>
+          <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-slate-700">
+            <ShieldCheck size={19} className="shrink-0 text-[#C61515]" />
+            <p>Esta invitación habilita tu cuenta inmediatamente al completar el registro. No necesitás esperar aprobación administrativa.</p>
+          </div>
+          {(error || loadError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error || loadError}</p>}
+          <button disabled={saving} type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#C61515] px-5 py-3.5 font-semibold text-white transition hover:bg-red-800 disabled:opacity-50">
+            {saving && <LoaderCircle className="animate-spin" size={18} />} Activar mi cuenta
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>;
 }

@@ -176,7 +176,7 @@ export default function InstitutionView() {
     }
 
     return (
-        <div className="mx-auto w-full max-w-7xl space-y-7 px-3 py-5 text-slate-100 sm:px-6 sm:py-8">
+        <div className="i12-light-page mx-auto w-full max-w-7xl space-y-7 px-3 py-5 text-slate-100 sm:px-6 sm:py-8">
             {/* ENCABEZADO */}
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-4">

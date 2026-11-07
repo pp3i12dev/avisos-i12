@@ -1,25 +1,27 @@
-import { shiftLabel } from '../utils/courseShift';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, BookOpen, Building2, CheckCheck, ChevronRight,
-  ClipboardCheck, GraduationCap, Search, ShieldCheck, XCircle,
+  ArrowLeft, Building2, Check, CheckCheck, ChevronRight, GraduationCap,
+  Search, ShieldCheck, Trash2, X, XCircle,
 } from 'lucide-react';
 import { usersService } from '../services/users.service';
+import { shiftLabel } from '../utils/courseShift';
 
-const tabs = [
+const TABS = [
   { value: 'PENDING', label: 'Pendientes' },
   { value: 'APPROVED', label: 'Aprobadas' },
   { value: 'REJECTED', label: 'Rechazadas' },
 ];
-const normalized = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-const formatted = value => value ? new Intl.DateTimeFormat('es-AR', {
-  dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires',
+const normalize = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const displayDate = value => value ? new Intl.DateTimeFormat('es-AR', {
+  dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires',
 }).format(new Date(value)) : '—';
-const panel = 'rounded-2xl border border-slate-700 bg-slate-900/90 p-4 sm:p-5';
+const surface = 'rounded-2xl border border-[#dce1e8] bg-white shadow-[0_8px_28px_rgba(31,41,55,.045)]';
+const mutedButton = 'inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500';
+const actionRed = 'inline-flex items-center justify-center gap-2 rounded-xl bg-[#C61515] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ad1212] disabled:cursor-not-allowed disabled:opacity-45';
+const actionGreen = 'inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-45';
 
-/** Los grupos se obtienen del backend y están filtrados por la institución del usuario. */
 export default function StudentSignupRequestsView() {
   const qc = useQueryClient();
   const [tab, setTab] = useState('PENDING');
@@ -28,7 +30,7 @@ export default function StudentSignupRequestsView() {
   const [courseId, setCourseId] = useState('');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState([]);
-  const [action, setAction] = useState(null);
+  const [action, setAction] = useState(null); // { type: 'APPROVED' | 'REJECTED' | 'ARCHIVE', ids }
   const [reason, setReason] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -37,26 +39,16 @@ export default function StudentSignupRequestsView() {
     queryFn: () => usersService.signupCourseGroups(tab),
     refetchInterval: tab === 'PENDING' ? 45000 : false,
   });
-  const groups = Array.isArray(groupsQuery.data) ? groupsQuery.data : [];
-  const institutions = useMemo(() => {
-    const map = new Map();
-    groups.forEach(c => map.set(String(c.institutionId), c.institution));
-    return [...map.entries()].map(([id, institution]) => ({ id, nombre: institution?.nombre ?? `Institución ${id}` }))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-  }, [groups]);
+  const groups = useMemo(() => Array.isArray(groupsQuery.data) ? groupsQuery.data : [], [groupsQuery.data]);
+  const institutions = useMemo(() => [...new Map(groups.map(c => [String(c.institutionId), c.institution])).entries()]
+    .map(([id, institution]) => ({ id, nombre: institution?.nombre || `Institución ${id}` }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')), [groups]);
   const effectiveInstitution = institutionId || (institutions.length === 1 ? institutions[0].id : '');
   const institutionCourses = groups.filter(c => String(c.institutionId) === effectiveInstitution);
-  const careers = useMemo(() => {
-    const map = new Map();
-    institutionCourses.forEach(c => {
-      const key = c.career ? String(c.career.id) : 'sin-carrera';
-      map.set(key, c.career?.nombre || 'Sin carrera / nivel asignado');
-    });
-    return [...map.entries()].map(([id, nombre]) => ({ id, nombre }))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-  }, [institutionCourses]);
+  const careers = useMemo(() => [...new Map(institutionCourses.map(c => [String(c.career?.id ?? 'none'), c.career?.nombre || 'Sin carrera asignada'])).entries()]
+    .map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')), [institutionCourses]);
   const effectiveCareer = careerKey || (careers.length === 1 ? careers[0].id : '');
-  const visibleCourses = institutionCourses.filter(c => (c.career ? String(c.career.id) : 'sin-carrera') === effectiveCareer);
+  const visibleCourses = institutionCourses.filter(c => String(c.career?.id ?? 'none') === effectiveCareer);
   const activeCourse = visibleCourses.find(c => String(c.id) === courseId);
 
   const rowsQuery = useQuery({
@@ -65,117 +57,167 @@ export default function StudentSignupRequestsView() {
     enabled: Boolean(activeCourse),
     refetchInterval: activeCourse && tab === 'PENDING' ? 45000 : false,
   });
-  const records = Array.isArray(rowsQuery.data) ? rowsQuery.data : [];
-  const rows = useMemo(() => records.filter(u => normalized(
-    `${u.firstName} ${u.lastName} ${u.dni} ${u.email}`,
-  ).includes(normalized(search.trim()))), [records, search]);
+  const records = useMemo(() => Array.isArray(rowsQuery.data) ? rowsQuery.data : [], [rowsQuery.data]);
+  const rows = useMemo(() => records.filter(u => normalize(
+    `${u.firstName} ${u.lastName} ${u.dni} ${u.email} ${u.telefono || ''}`,
+  ).includes(normalize(search.trim()))), [records, search]);
   const allowed = rows.slice(0, 100);
   const selectedVisible = allowed.filter(u => selected.includes(u.id)).map(u => u.id);
   const allVisible = allowed.length > 0 && allowed.every(u => selected.includes(u.id));
 
-  useEffect(() => { setInstitutionId(''); setCareerKey(''); setCourseId(''); setSelected([]); setSearch(''); setNotice(''); }, [tab]);
+  useEffect(() => { setInstitutionId(''); setCareerKey(''); setCourseId(''); setSelected([]); setSearch(''); setNotice(''); setAction(null); }, [tab]);
   useEffect(() => { setSelected([]); setSearch(''); setAction(null); }, [courseId]);
+  useEffect(() => {
+    if (!action) return undefined;
+    const onKey = e => { if (e.key === 'Escape' && !decision.isPending) setAction(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [action]);
 
-  const bulk = useMutation({
-    mutationFn: ({ ids, decision, reason: why }) => decision === 'APPROVED'
-      ? usersService.approveSignups(ids) : usersService.rejectSignups(ids, why),
-    onSuccess: response => {
-      setNotice(`${response.processed} solicitud(es) ${response.status === 'APPROVED' ? 'aprobadas' : 'rechazadas'}.`);
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['student-signup-requests'] });
+    qc.invalidateQueries({ queryKey: ['student-signup-course-groups'] });
+    qc.invalidateQueries({ queryKey: ['users', 'student'] });
+    qc.invalidateQueries({ queryKey: ['dashboard-summary'] });
+  };
+  const decision = useMutation({
+    mutationFn: async ({ type, ids, reason: why }) => {
+      if (type === 'APPROVED') return usersService.approveSignups(ids);
+      if (type === 'REJECTED') return usersService.rejectSignups(ids, why);
+      return usersService.archiveSignup(ids[0]);
+    },
+    onSuccess: (data, variables) => {
+      const messages = {
+        APPROVED: 'aprobadas', REJECTED: 'rechazadas', ARCHIVE: 'retirada de la bandeja',
+      };
+      setNotice(`${variables.ids.length} solicitud(es) ${messages[variables.type]}.`);
       setAction(null); setSelected([]); setReason('');
-      qc.invalidateQueries({ queryKey: ['student-signup-requests'] });
-      qc.invalidateQueries({ queryKey: ['student-signup-course-groups'] });
-      qc.invalidateQueries({ queryKey: ['users', 'student'] });
-      qc.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      invalidate();
     },
   });
-  const begin = (decision, ids) => {
-    if (!activeCourse || !ids.length || ids.length > 100) return;
-    bulk.reset(); setReason(''); setNotice(''); setAction({ decision, ids });
+  const begin = (type, ids) => {
+    if (!activeCourse || !ids.length || ids.length > 100 || (type === 'ARCHIVE' && ids.length !== 1)) return;
+    decision.reset(); setReason(''); setNotice(''); setAction({ type, ids });
   };
   const submit = () => {
-    if (!action || bulk.isPending) return;
-    if (action.decision === 'REJECTED' && (reason.trim().length < 5 || reason.length > 500)) return;
-    bulk.mutate({ ids: action.ids, decision: action.decision, reason: reason.trim() });
+    if (!action || decision.isPending) return;
+    if (action.type === 'REJECTED' && (reason.trim().length < 5 || reason.trim().length > 500)) return;
+    decision.mutate({ ...action, reason: reason.trim() });
   };
 
-  return <section className="mx-auto w-full max-w-7xl space-y-5 pb-12 text-white">
-    <header className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <Link to="/dashboard/students" className="inline-flex items-center gap-2 text-sm font-medium text-sky-300 hover:underline"><ArrowLeft size={17}/> Volver a Alumnos</Link>
-      </div>
-      <span className="inline-flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-indigo-500/10 px-3 py-2 text-sm text-indigo-200"><ShieldCheck size={17}/> Dirección y preceptoría</span>
+  return <section className="mx-auto w-full max-w-[1500px] space-y-5 pb-14 text-slate-900">
+    <header className="flex flex-wrap items-center justify-between gap-3">
+      <Link to="/dashboard/students" className="inline-flex items-center gap-2 text-sm font-semibold text-[#C61515] hover:underline"><ArrowLeft size={17}/> Volver a Alumnos</Link>
+      <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600"><ShieldCheck size={16} className="text-[#C61515]"/> Dirección y preceptoría</span>
     </header>
 
-    <div className={panel}>
+    <div className={`${surface} p-4 sm:p-6`}>
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Estado de solicitudes">
-        {tabs.map(t => <button key={t.value} type="button" role="tab" aria-selected={tab === t.value} onClick={() => setTab(t.value)}
-          className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${tab === t.value ? 'bg-blue-600 text-white' : 'border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>{t.label}</button>)}
+        {TABS.map(t => <button key={t.value} type="button" role="tab" aria-selected={tab === t.value}
+          onClick={() => setTab(t.value)} className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${tab === t.value ? 'bg-[#C61515] text-white shadow-sm' : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'}`}>{t.label}</button>)}
       </div>
-      {groupsQuery.isLoading ? <p className="py-8 text-slate-300">Cargando instituciones y cursos…</p>
-        : groupsQuery.error ? <p role="alert" className="mt-5 text-rose-300">No se pudieron cargar los cursos: {groupsQuery.error.response?.data?.message || groupsQuery.error.message}</p>
-        : groups.length === 0 ? <p className="py-8 text-slate-300">Todavía no hay cursos registrados.</p>
+      {groupsQuery.isLoading ? <p className="py-7 text-slate-500">Cargando instituciones y cursos…</p>
+        : groupsQuery.error ? <p role="alert" className="mt-4 text-red-700">No se pudieron cargar los cursos: {groupsQuery.error.response?.data?.message || groupsQuery.error.message}</p>
+        : groups.length === 0 ? <p className="py-7 text-slate-500">Todavía no hay cursos registrados.</p>
         : <div className="mt-5 space-y-5">
-          <nav className="flex flex-wrap items-center gap-2 text-sm text-slate-300" aria-label="Ubicación dentro de las solicitudes">
-            <button type="button" onClick={() => { setInstitutionId(''); setCareerKey(''); setCourseId(''); }} className="text-sky-300 hover:underline">Instituciones</button>
-            {effectiveInstitution && <><ChevronRight size={15}/><button type="button" onClick={() => { setCareerKey(''); setCourseId(''); }} className="text-sky-300 hover:underline">{institutions.find(i => i.id === effectiveInstitution)?.nombre}</button></>}
-            {effectiveCareer && <><ChevronRight size={15}/><button type="button" className="text-sky-300 hover:underline" onClick={() => setCourseId('')}>{careers.find(c => c.id === effectiveCareer)?.nombre}</button></>}
-            {activeCourse && <><ChevronRight size={15}/><span className="font-semibold text-white">{activeCourse.nombre} · {shiftLabel(activeCourse.shift)}</span></>}
+          <nav className="flex flex-wrap items-center gap-2 text-sm text-slate-500" aria-label="Ubicación de solicitudes">
+            <button type="button" className="text-[#B71919] hover:underline" onClick={() => { setInstitutionId(''); setCareerKey(''); setCourseId(''); }}>Instituciones</button>
+            {effectiveInstitution && <><ChevronRight size={15}/><button type="button" className="text-[#B71919] hover:underline" onClick={() => { setCareerKey(''); setCourseId(''); }}>{institutions.find(i => i.id === effectiveInstitution)?.nombre}</button></>}
+            {effectiveCareer && <><ChevronRight size={15}/><button type="button" className="text-[#B71919] hover:underline" onClick={() => setCourseId('')}>{careers.find(c => c.id === effectiveCareer)?.nombre}</button></>}
+            {activeCourse && <><ChevronRight size={15}/><span className="font-semibold text-slate-800">{activeCourse.nombre} · {shiftLabel(activeCourse.shift)}</span></>}
           </nav>
           {institutions.length > 1 && <div>
-            <h2 className="mb-3 flex items-center gap-2 font-semibold"><Building2 size={19}/> 1. Seleccioná una institución</h2>
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold"><Building2 size={18} className="text-[#C61515]"/> Elegí la institución</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{institutions.map(i => <button key={i.id} type="button" onClick={() => { setInstitutionId(i.id); setCareerKey(''); setCourseId(''); }}
-              className={`rounded-xl border p-4 text-left transition ${effectiveInstitution === i.id ? 'border-sky-400 bg-sky-500/10' : 'border-slate-700 bg-slate-950 hover:border-sky-600'}`}><span className="font-semibold">{i.nombre}</span><span className="mt-1 block text-xs text-slate-400">{groups.filter(c => String(c.institutionId) === i.id).reduce((n, c) => n + c.requestCount, 0)} solicitudes</span></button>)}</div>
+              className={`rounded-xl border p-4 text-left transition ${effectiveInstitution === i.id ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'}`}>
+              <span className="font-semibold text-slate-900">{i.nombre}</span><span className="mt-1 block text-xs text-slate-600">{groups.filter(c => String(c.institutionId) === i.id).reduce((n, c) => n + c.requestCount, 0)} solicitudes</span></button>)}</div>
           </div>}
           {effectiveInstitution && <div>
-            <h2 className="mb-3 flex items-center gap-2 font-semibold"><GraduationCap size={19}/> {institutions.length > 1 ? '2.' : '1.'} Seleccioná la carrera o nivel</h2>
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold"><GraduationCap size={18} className="text-[#C61515]"/> Carrera o nivel</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{careers.map(c => <button key={c.id} type="button" onClick={() => { setCareerKey(c.id); setCourseId(''); }}
-              className={`rounded-xl border p-4 text-left transition ${effectiveCareer === c.id ? 'border-sky-400 bg-sky-500/10' : 'border-slate-700 bg-slate-950 hover:border-sky-600'}`}><span className="font-semibold">{c.nombre}</span><span className="mt-1 block text-xs text-slate-400">{institutionCourses.filter(x => (x.career ? String(x.career.id) : 'sin-carrera') === c.id).length} curso(s)</span></button>)}</div>
+              className={`rounded-xl border p-4 text-left transition ${effectiveCareer === c.id ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'}`}>
+              <span className="font-semibold text-slate-900">{c.nombre}</span><span className="mt-1 block text-xs text-slate-600">{institutionCourses.filter(x => String(x.career?.id ?? 'none') === c.id).length} curso(s)</span></button>)}</div>
           </div>}
           {effectiveCareer && <div>
-            <h2 className="mb-3 flex items-center gap-2 font-semibold"><BookOpen size={19}/> {institutions.length > 1 ? '3.' : '2.'} Elegí el curso para revisar las solicitudes</h2>
+            <h2 className="mb-3 text-sm font-bold">Curso</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{visibleCourses.map(c => <button key={c.id} type="button" onClick={() => setCourseId(String(c.id))}
-              className={`rounded-xl border p-4 text-left transition ${courseId === String(c.id) ? 'border-blue-400 bg-blue-500/15' : 'border-slate-700 bg-slate-950 hover:border-blue-500/60'}`}>
-              <span className="flex items-center justify-between gap-2"><span className="font-semibold">{c.nombre} · {shiftLabel(c.shift)}</span><span className="rounded-full bg-blue-500/20 px-2.5 py-1 text-xs font-bold text-blue-200">{c.requestCount}</span></span>
-              <span className="mt-2 block text-xs text-slate-400">Ciclo lectivo {c.academicYear} · {c.enrolledCount} matriculados en total</span>
+              className={`rounded-xl border p-4 text-left transition ${courseId === String(c.id) ? 'border-red-500 bg-red-50 ring-1 ring-red-200' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'}`}>
+              <span className="flex items-center justify-between gap-2"><span className="font-semibold text-slate-900">{c.nombre} · {shiftLabel(c.shift)}</span><span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">{c.requestCount}</span></span>
+              <span className="mt-2 block text-xs text-slate-600">Ciclo lectivo {c.academicYear} · {c.enrolledCount} matriculados en total</span>
             </button>)}</div>
           </div>}
         </div>}
     </div>
 
-    {activeCourse && <div className={panel}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="text-xl font-bold">{activeCourse.nombre} · {shiftLabel(activeCourse.shift)} · {activeCourse.career?.nombre || 'Sin carrera'}</h2><p className="mt-1 text-sm text-slate-400">{activeCourse.institution?.nombre} · {tab.toLowerCase()} · {rows.length} alumno(s)</p></div>
-        <button onClick={() => setCourseId('')} className="inline-flex items-center gap-2 rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800"><ArrowLeft size={16}/> Cambiar curso</button>
+    {activeCourse && <div className={`${surface} overflow-hidden`}>
+      <div className="flex flex-wrap items-start justify-between gap-3 p-4 sm:p-6">
+        <div><h2 className="text-lg font-bold text-slate-900">Solicitudes · {activeCourse.nombre} · {shiftLabel(activeCourse.shift)}</h2>
+          <p className="mt-1 text-sm text-slate-600">{activeCourse.institution?.nombre} · {rows.length} alumno(s) en la vista</p></div>
+        <button type="button" onClick={() => setCourseId('')} className={mutedButton}><ArrowLeft size={16}/> Cambiar curso</button>
       </div>
-      <div className="mt-4"><label className="relative block max-w-lg"><Search size={18} className="absolute left-3 top-3 text-slate-400"/><span className="sr-only">Buscar alumno</span>
-        <input value={search} onChange={e => { setSearch(e.target.value); setSelected([]); }} placeholder="Buscar nombre, DNI o correo" className="w-full rounded-xl border border-slate-600 bg-slate-950 px-10 py-2.5 text-sm focus:border-sky-400"/></label></div>
-      {tab === 'PENDING' && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-700 pt-4">
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={!allowed.length} checked={allVisible} onChange={e => setSelected(e.target.checked ? allowed.map(u => u.id) : [])} className="h-4 w-4 accent-blue-500"/> Seleccionar todos los alumnos visibles {rows.length > 100 ? '(primeros 100)' : ''}</label>
+      <div className="px-4 pb-4 sm:px-6">
+        <label className="relative block max-w-xl"><Search size={18} className="pointer-events-none absolute left-3 top-3 text-slate-400"/>
+          <span className="sr-only">Buscar alumno</span><input value={search} onChange={e => { setSearch(e.target.value); setSelected([]); }}
+            placeholder="Buscar nombre, DNI, correo o teléfono" className="w-full rounded-xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-500 focus:border-red-400 focus:ring-2 focus:ring-red-100"/></label>
+      </div>
+      {tab === 'PENDING' && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-6">
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" disabled={!allowed.length} checked={allVisible}
+          onChange={e => setSelected(e.target.checked ? allowed.map(u => u.id) : [])} className="h-4 w-4 accent-[#C61515]"/> Seleccionar visibles {rows.length > 100 ? '(primeros 100)' : ''}</label>
         <div className="flex flex-wrap gap-2">
-          <button disabled={!selectedVisible.length || bulk.isPending} onClick={() => begin('APPROVED', selectedVisible)} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold disabled:opacity-40"><CheckCheck size={17}/> Aprobar ({selectedVisible.length})</button>
-          <button disabled={!selectedVisible.length || bulk.isPending} onClick={() => begin('REJECTED', selectedVisible)} className="inline-flex items-center gap-2 rounded-lg border border-rose-400/40 px-3 py-2 text-sm font-semibold text-rose-200 disabled:opacity-40"><XCircle size={17}/> Rechazar ({selectedVisible.length})</button>
+          <button type="button" disabled={!selectedVisible.length || decision.isPending} onClick={() => begin('APPROVED', selectedVisible)} className={actionGreen}><CheckCheck size={16}/> Aprobar ({selectedVisible.length})</button>
+          <button type="button" disabled={!selectedVisible.length || decision.isPending} onClick={() => begin('REJECTED', selectedVisible)} className={actionRed}><XCircle size={16}/> Rechazar ({selectedVisible.length})</button>
         </div>
       </div>}
-      {notice && <p role="status" className="mt-4 rounded-xl border border-emerald-400/40 bg-emerald-500/10 p-3 text-sm text-emerald-200">{notice}</p>}
-      {rowsQuery.error && <p role="alert" className="mt-4 text-sm text-rose-300">{rowsQuery.error.response?.data?.message || rowsQuery.error.message}</p>}
-      {rowsQuery.isLoading ? <p className="py-8 text-slate-400">Cargando alumnos…</p> : rows.length === 0 ? <p className="py-8 text-slate-400">No hay alumnos en este curso para el estado seleccionado.</p> :
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">{rows.map(u => <article key={u.id} className={`rounded-xl border p-4 ${selected.includes(u.id) ? 'border-blue-400 bg-blue-500/10' : 'border-slate-700 bg-slate-950/65'}`}>
-          <div className="flex items-start gap-3">
-            {tab === 'PENDING' && <input aria-label={`Seleccionar ${u.firstName} ${u.lastName}`} type="checkbox" disabled={!allowed.some(r => r.id === u.id)} checked={selected.includes(u.id)} onChange={e => setSelected(old => e.target.checked ? [...old, u.id] : old.filter(id => id !== u.id))} className="mt-1 h-4 w-4 accent-blue-500"/>}
-            <div className="min-w-0 flex-1"><h3 className="font-semibold">{u.firstName} {u.lastName}</h3><p className="mt-1 break-words text-sm text-slate-300">DNI {u.dni} · {u.email}</p><p className="mt-1 text-xs text-slate-400">Registrado: {formatted(u.createdAt)}</p>
-              {u.signupReviewedAt && <p className="mt-1 text-xs text-slate-400">Revisado: {formatted(u.signupReviewedAt)}</p>}{u.signupReviewReason && <p className="mt-2 text-sm text-amber-200">Motivo: {u.signupReviewReason}</p>}
-            </div>
-          </div>
-          {tab === 'PENDING' && <div className="mt-4 flex gap-2 border-t border-slate-700 pt-3"><button onClick={() => begin('APPROVED', [u.id])} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold">Aprobar</button><button onClick={() => begin('REJECTED', [u.id])} className="rounded-lg border border-rose-400/40 px-3 py-2 text-sm font-semibold text-rose-200">Rechazar</button></div>}
-        </article>)}</div>}
+      {notice && <p role="status" className="mx-4 mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800 sm:mx-6">{notice}</p>}
+      {rowsQuery.error && <p role="alert" className="mx-4 my-4 text-sm text-red-700 sm:mx-6">{rowsQuery.error.response?.data?.message || rowsQuery.error.message}</p>}
+      {rowsQuery.isLoading ? <p className="p-6 text-slate-500">Cargando alumnos…</p> : rows.length === 0 ? <p className="p-6 text-slate-500">No hay solicitudes para este curso y estado.</p> :
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-[940px] border-collapse text-left text-sm">
+            <thead className="bg-[#F3F5F7] text-xs uppercase tracking-wide text-slate-600"><tr>
+              {tab === 'PENDING' && <th scope="col" className="w-12 px-4 py-4"><span className="sr-only">Seleccionar</span></th>}
+              <th scope="col" className="px-4 py-4">Nombre y apellido</th><th scope="col" className="px-4 py-4">DNI</th><th scope="col" className="px-4 py-4">Correo electrónico</th>
+              <th scope="col" className="px-4 py-4">Teléfono</th><th scope="col" className="px-4 py-4">Registrado</th><th scope="col" className="px-4 py-4">Estado</th><th scope="col" className="px-4 py-4 text-right">Acciones</th>
+            </tr></thead>
+            <tbody className="divide-y divide-slate-100">{rows.map(u => <tr key={u.id} className={`transition hover:bg-slate-50 ${selected.includes(u.id) ? 'bg-red-50/40' : 'bg-white'}`}>
+              {tab === 'PENDING' && <td className="px-4 py-4"><input type="checkbox" aria-label={`Seleccionar ${u.firstName} ${u.lastName}`}
+                disabled={!allowed.some(r => r.id === u.id)} checked={selected.includes(u.id)} onChange={e => setSelected(old => e.target.checked ? [...old, u.id] : old.filter(id => id !== u.id))} className="h-4 w-4 accent-[#C61515]"/></td>}
+              <td className="px-4 py-4 font-semibold text-slate-900">{[u.firstName,u.lastName].filter(Boolean).join(' ') || 'Sin nombre'}</td>
+              <td className="whitespace-nowrap px-4 py-4 text-slate-700">{u.dni || '—'}</td>
+              <td className="px-4 py-4 text-slate-700"><span className="break-all">{u.email}</span></td>
+              <td className="px-4 py-4 text-slate-700">{u.telefono || '—'}</td>
+              <td className="whitespace-nowrap px-4 py-4 text-slate-600">{displayDate(u.createdAt)}</td>
+              <td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${tab === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : tab === 'REJECTED' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>
+                {tab === 'PENDING' ? 'Pendiente' : tab === 'APPROVED' ? 'Aprobada' : 'Rechazada'}</span></td>
+              <td className="px-4 py-4"><div className="flex items-center justify-end gap-2">
+                {tab === 'PENDING' ? <>
+                  <button type="button" onClick={() => begin('APPROVED', [u.id])} className={actionGreen} title="Aprobar solicitud"><Check size={15}/> Aprobar</button>
+                  <button type="button" onClick={() => begin('REJECTED', [u.id])} className={actionRed} title="Rechazar solicitud"><X size={15}/> Rechazar</button>
+                  <button type="button" onClick={() => begin('ARCHIVE', [u.id])} className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50" title="Retirar solicitud de la bandeja"><Trash2 size={15}/> Eliminar</button>
+                </> : <span className="max-w-[200px] text-xs text-slate-500">{u.signupReviewReason || (u.signupReviewedAt ? `Revisada ${displayDate(u.signupReviewedAt)}` : 'Sin acciones pendientes')}</span>}
+              </div></td>
+            </tr>)}</tbody>
+          </table>
+        </div>}
+      <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 text-xs text-slate-500 sm:px-6">{rows.length} solicitud(es) mostradas. Deslizá la tabla horizontalmente en pantallas pequeñas.</div>
     </div>}
 
-    {action && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4" role="presentation"><div role="dialog" aria-modal="true" aria-labelledby="signup-modal-title" className="w-full max-w-lg rounded-2xl border border-slate-600 bg-slate-900 p-6 shadow-2xl">
-      <h2 id="signup-modal-title" className="text-xl font-bold">{action.decision === 'APPROVED' ? 'Confirmar aprobación' : 'Confirmar rechazo'}</h2>
-      <p className="mt-3 text-sm text-slate-300">{action.ids.length} solicitud(es) de {activeCourse?.nombre} · {shiftLabel(activeCourse?.shift)} serán {action.decision === 'APPROVED' ? 'aprobadas' : 'rechazadas'}. La operación se realiza en un único lote.</p>
-      {action.decision === 'REJECTED' && <label className="mt-4 block text-sm font-semibold">Motivo del rechazo (obligatorio)<textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} maxLength={500} className="mt-2 w-full rounded-xl border border-slate-600 bg-slate-950 p-3" placeholder="Motivo para el alumno"/></label>}
-      {bulk.error && <p role="alert" className="mt-3 text-sm text-rose-300">{bulk.error.response?.data?.message || bulk.error.message}</p>}
-      <div className="mt-5 flex justify-end gap-2"><button onClick={() => { setAction(null); bulk.reset(); }} disabled={bulk.isPending} className="rounded-xl border border-slate-600 px-4 py-2.5">Cancelar</button><button onClick={submit} disabled={bulk.isPending || (action.decision === 'REJECTED' && reason.trim().length < 5)} className={`rounded-xl px-4 py-2.5 font-semibold disabled:opacity-40 ${action.decision === 'APPROVED' ? 'bg-emerald-600' : 'bg-rose-600'}`}>{bulk.isPending ? 'Procesando…' : `Confirmar ${action.ids.length}`}</button></div>
-    </div></div>}
+    {action && <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-[2px]" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget && !decision.isPending) setAction(null); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="signup-dialog-title" className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl">
+        <div className="flex items-start justify-between gap-3"><h2 id="signup-dialog-title" className="text-xl font-bold">
+          {action.type === 'APPROVED' ? 'Confirmar aprobación' : action.type === 'REJECTED' ? 'Confirmar rechazo' : '¿Eliminar esta solicitud?'}</h2>
+          <button type="button" onClick={() => setAction(null)} disabled={decision.isPending} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100" aria-label="Cerrar"><X size={19}/></button></div>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{action.type === 'ARCHIVE'
+          ? 'La solicitud se retirará de la bandeja y la cuenta quedará desactivada. Se conservará un registro administrativo; esta acción no equivale a borrar físicamente los datos.'
+          : `${action.ids.length} solicitud(es) del curso ${activeCourse?.nombre} serán ${action.type === 'APPROVED' ? 'aprobadas' : 'rechazadas'}.`}</p>
+        {action.type === 'REJECTED' && <label className="mt-4 block text-sm font-semibold text-slate-800">Motivo del rechazo (obligatorio)
+          <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} maxLength={500} placeholder="Explicá el motivo para el alumno"
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-slate-900 outline-none placeholder:text-slate-500 focus:border-red-400"/></label>}
+        {decision.error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{decision.error.response?.data?.message || decision.error.message}</p>}
+        <div className="mt-6 flex flex-wrap justify-end gap-2"><button type="button" disabled={decision.isPending} onClick={() => { setAction(null); decision.reset(); }} className={mutedButton}>Cancelar</button>
+          <button type="button" onClick={submit} disabled={decision.isPending || (action.type === 'REJECTED' && reason.trim().length < 5)} className={action.type === 'APPROVED' ? actionGreen : actionRed}>
+            {decision.isPending ? 'Procesando…' : action.type === 'APPROVED' ? 'Sí, aprobar' : action.type === 'REJECTED' ? 'Sí, rechazar' : 'Sí, eliminar solicitud'}</button></div>
+      </div>
+    </div>}
   </section>;
 }

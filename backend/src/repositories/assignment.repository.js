@@ -7,7 +7,7 @@ export const listAssignmentOptions = async (institutionId) => {
 
     const [courses, subjects, students, teachers] = await Promise.all([
         prisma.course.findMany({
-            where: institutionWhere,
+            where: { ...institutionWhere, isActive: true },
             include: { career: true, institution: { select: { id: true, nombre: true } } },
             orderBy: { nombre: 'asc' },
         }),
@@ -151,6 +151,8 @@ export const createStudentCourse = (studentId, courseId) => {
             error.code = 'STUDENT_ALREADY_ENROLLED';
             throw error;
         }
+        const activeCourse = await tx.course.findFirst({ where: { id: courseId, isActive: true }, select: { id: true } });
+        if (!activeCourse) throw Object.assign(new Error('El curso está desactivado o no existe.'), { status: 409 });
         return tx.studentCourse.create({ data: { studentId, courseId } });
     });
 };

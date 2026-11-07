@@ -1,9 +1,9 @@
-
 import { useContext, useMemo, useState } from 'react';
 import {
     Plus,
     Pencil,
     Trash2,
+    Power,
     Users,
     BookOpen,
     ChevronDown,
@@ -17,14 +17,14 @@ import {
     useCreateCourse,
     useUpdateCourse,
     useDeleteCourse,
+    useSetCourseStatus,
 } from '../hooks/useCourseAdmin';
 
 import { useInstitutions } from '../hooks/useInstitution';
 
 import CourseFormModal from '../components/CourseFormModal';
 import CourseStudentsManager from '../components/CourseStudentsManager';
-import ConfirmDialog from '../components/ConfirmDialog';
-import SearchInput from '../components/SearchInput';
+import CourseDeletionModal from '../components/CourseDeletionModal';
 import { SHIFTS, shiftLabel } from '../utils/courseShift';
 
 function getErrorMessage(error) {
@@ -39,6 +39,7 @@ export default function CoursesListView() {
     const { user } = useContext(AuthContext);
 
     const isSuperAdmin = user?.isSuperAdmin === true || user?.roles?.includes('SUPER_ADMIN');
+    const canManageCourseLifecycle = isSuperAdmin || user?.roles?.includes('DIRECTOR');
 
     const {
         data: courses = [],
@@ -51,10 +52,14 @@ export default function CoursesListView() {
     const createMutation = useCreateCourse();
     const updateMutation = useUpdateCourse();
     const deleteMutation = useDeleteCourse();
+    const statusMutation = useSetCourseStatus();
 
     const [search, setSearch] = useState('');
     const [selectedInstitution, setSelectedInstitution] = useState('');
+    const [selectedCareer, setSelectedCareer] = useState('');
+    const [selectedCourseFilter, setSelectedCourseFilter] = useState('');
     const [selectedShift, setSelectedShift] = useState('');
+    const [statusFilter, setStatusFilter] = useState('ACTIVE');
 
     const [formOpen, setFormOpen] = useState(false);
     const [editingCourse, setEditingCourse] = useState(null);
@@ -70,40 +75,63 @@ export default function CoursesListView() {
         [institutions]
     );
 
+    // Cada selector restringe el siguiente: institución → carrera → curso.
+    // Un director solo recibe cursos autorizados de su institución desde la API.
+    const careerChoices = useMemo(() => {
+        const map = new Map();
+        courses.forEach((course) => {
+            if (isSuperAdmin && selectedInstitution &&
+                String(course.institutionId) !== selectedInstitution) return;
+            if (course.careerId && course.career) {
+                map.set(String(course.careerId), course.career.nombre);
+            }
+        });
+        return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'));
+    }, [courses, isSuperAdmin, selectedInstitution]);
+
+    const courseChoices = useMemo(() => courses.filter((course) => {
+        if (isSuperAdmin && selectedInstitution &&
+            String(course.institutionId) !== selectedInstitution) return false;
+        if (selectedCareer && String(course.careerId) !== selectedCareer) return false;
+        if (selectedShift && course.shift !== selectedShift) return false;
+        return true;
+    }).sort((a, b) =>
+        (a.nombre || '').localeCompare(b.nombre || '', 'es') ||
+        b.academicYear - a.academicYear
+    ), [courses, isSuperAdmin, selectedInstitution, selectedCareer, selectedShift]);
+
     const filteredCourses = useMemo(() => {
         const term = search.trim().toLocaleLowerCase('es');
-
-        return courses.filter((course) => {
-            const matchesInstitution =
-                !isSuperAdmin ||
-                !selectedInstitution ||
-                String(course.institutionId) === selectedInstitution;
-
-            const matchesShift = !selectedShift || course.shift === selectedShift;
+        return courseChoices.filter((course) => {
+            if (selectedCourseFilter && String(course.id) !== selectedCourseFilter) return false;
+            if (statusFilter === 'ACTIVE' && course.isActive === false) return false;
+            if (statusFilter === 'INACTIVE' && course.isActive !== false) return false;
             const searchable = [
-                shiftLabel(course.shift),
-                course.nombre,
-                course.academicYear,
-                course.career?.nombre,
-                course.career?.level,
-                course.institution?.nombre,
-                institutionMap.get(course.institutionId),
+                course.nombre, course.academicYear, shiftLabel(course.shift),
+                course.career?.nombre, course.career?.level,
+                course.institution?.nombre, institutionMap.get(course.institutionId),
                 course.id,
-            ]
-                .filter((value) => value != null)
-                .join(' ')
-                .toLocaleLowerCase('es');
-
-            return matchesInstitution && matchesShift && searchable.includes(term);
+            ].filter(value => value != null).join(' ').toLocaleLowerCase('es');
+            return searchable.includes(term);
         });
-    }, [
-        courses,
-        search,
-        selectedInstitution,
-        selectedShift,
-        isSuperAdmin,
-        institutionMap,
-    ]);
+    }, [courseChoices, search, selectedCourseFilter, institutionMap, statusFilter]);
+
+    const handleInstitutionFilter = (value) => {
+        setSelectedInstitution(value);
+        setSelectedCareer('');
+        setSelectedCourseFilter('');
+        setSelectedCourseId(null);
+    };
+    const handleCareerFilter = (value) => {
+        setSelectedCareer(value);
+        setSelectedCourseFilter('');
+        setSelectedCourseId(null);
+    };
+    const handleShiftFilter = (value) => {
+        setSelectedShift(value);
+        setSelectedCourseFilter('');
+        setSelectedCourseId(null);
+    };
 
     const selectedCourse = courses.find(
         (course) => course.id === selectedCourseId
@@ -142,23 +170,21 @@ export default function CoursesListView() {
         });
     };
 
-    const handleDelete = () => {
-        if (!deletingCourse) return;
-
+    const handleDelete = (payload) => {
         setActionError('');
-
-        deleteMutation.mutate(deletingCourse.id, {
+        deleteMutation.mutate(payload, {
             onSuccess: () => {
-                if (selectedCourseId === deletingCourse.id) {
-                    setSelectedCourseId(null);
-                }
-
+                if (selectedCourseId === payload.id) setSelectedCourseId(null);
                 setDeletingCourse(null);
             },
-            onError: (mutationError) => {
-                setActionError(getErrorMessage(mutationError));
-                setDeletingCourse(null);
-            },
+            onError: error => setActionError(getErrorMessage(error)),
+        });
+    };
+    const toggleStatus = course => {
+        setActionError('');
+        statusMutation.mutate({ id: course.id, isActive: course.isActive === false }, {
+            onSuccess: () => { if (selectedCourseId === course.id) setSelectedCourseId(null); },
+            onError: error => setActionError(getErrorMessage(error)),
         });
     };
 
@@ -173,64 +199,114 @@ export default function CoursesListView() {
         'rounded-lg px-3 py-2 text-sm font-medium transition-colors';
 
     return (
-        <div className="space-y-6 text-white">
+        <div className="space-y-6 text-slate-900">
             <div className="flex flex-wrap items-center justify-end gap-4">
                 <button
                     type="button"
                     onClick={openCreate}
-                    className={`${buttonClass} bg-blue-600 hover:bg-blue-700`}
+                    className={`${buttonClass} bg-[#C61515] text-white hover:bg-red-700`}
                 >
                     <Plus size={18} />
                     Nuevo curso
                 </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-                <SearchInput
-                    value={search}
-                    onChange={setSearch}
-                    placeholder="Buscar curso, carrera o año lectivo..."
-                />
-
-                {isSuperAdmin && (
-                    <select
-                        value={selectedInstitution}
-                        onChange={(event) => {
-                            setSelectedInstitution(event.target.value);
-                            setSelectedCourseId(null);
-                        }}
-                        className="cursor-pointer rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm"
-                    >
-                        <option value="">Todas las instituciones</option>
-
-                        {institutions.map((institution) => (
-                            <option key={institution.id} value={institution.id}>
-                                {institution.nombre}
-                            </option>
-                        ))}
-                    </select>
-                )}
-                <select aria-label="Filtrar cursos por turno" value={selectedShift} onChange={e => { setSelectedShift(e.target.value); setSelectedCourseId(null); }} className="cursor-pointer rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm">
-                    <option value="">Todos los turnos</option>
-                    {SHIFTS.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {isSuperAdmin && (
+                        <label className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+                            Institución
+                            <select
+                                aria-label="Filtrar por institución"
+                                value={selectedInstitution}
+                                onChange={e => handleInstitutionFilter(e.target.value)}
+                                className="min-h-11 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm font-normal text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+                            >
+                                <option value="">Todas las instituciones</option>
+                                {institutions.map(inst => (
+                                    <option key={inst.id} value={inst.id}>{inst.nombre}</option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
+                    <label className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+                        Carrera
+                        <select
+                            aria-label="Filtrar por carrera"
+                            value={selectedCareer}
+                            onChange={e => handleCareerFilter(e.target.value)}
+                            className="min-h-11 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm font-normal text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+                        >
+                            <option value="">Todas las carreras</option>
+                            {careerChoices.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                        </select>
+                    </label>
+                    <label className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+                        Turno
+                        <select
+                            aria-label="Filtrar cursos por turno"
+                            value={selectedShift}
+                            onChange={e => handleShiftFilter(e.target.value)}
+                            className="min-h-11 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm font-normal text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+                        >
+                            <option value="">Todos los turnos</option>
+                            {SHIFTS.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+                        </select>
+                    </label>
+                    <label className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+                        Curso / año lectivo
+                        <select
+                            aria-label="Filtrar por curso"
+                            value={selectedCourseFilter}
+                            onChange={e => { setSelectedCourseFilter(e.target.value); setSelectedCourseId(null); }}
+                            className="min-h-11 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm font-normal text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+                        >
+                            <option value="">Todos los cursos</option>
+                            {courseChoices.map(course => (
+                                <option key={course.id} value={course.id}>
+                                    {course.nombre} · {course.academicYear} · {shiftLabel(course.shift)}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700">Estado
+                        <select value={statusFilter} onChange={e => {setStatusFilter(e.target.value);setSelectedCourseId(null);}} className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-slate-900">
+                            <option value="ACTIVE">Activos</option><option value="INACTIVE">Desactivados</option><option value="ALL">Todos</option>
+                        </select>
+                    </label>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <input
+                        type="search"
+                        aria-label="Buscar cursos"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Buscar por carrera, curso, turno o año..."
+                        className="min-h-11 w-full max-w-xl rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm text-slate-900 placeholder:text-slate-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+                    />
+                    <span className="text-xs text-slate-500">
+                        {filteredCourses.length} curso(s) encontrados
+                    </span>
+                </div>
             </div>
 
             {actionError && (
-                <p role="alert" className="text-sm text-red-400">
+                <p role="alert" className="text-sm text-red-700">
                     {actionError}
                 </p>
             )}
 
             {error && (
-                <p role="alert" className="text-sm text-red-400">
+                <p role="alert" className="text-sm text-red-700">
                     {getErrorMessage(error)}
                 </p>
             )}
 
-            <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900/90">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
                 <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-800 text-slate-300">
+                    <thead className="bg-slate-100 text-slate-600">
                         <tr>
                             <th className="px-4 py-3">Curso</th>
                             <th className="px-4 py-3">Carrera / Nivel</th>
@@ -245,7 +321,7 @@ export default function CoursesListView() {
                         </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-slate-800">
+                    <tbody className="divide-y divide-slate-200">
                         {isLoading ? (
                             <tr>
                                 <td
@@ -274,23 +350,24 @@ export default function CoursesListView() {
                                         key={course.id}
                                         className={
                                             isSelected
-                                                ? 'bg-blue-950/40'
-                                                : 'hover:bg-slate-800/40'
+                                                ? 'bg-rose-50'
+                                                : 'hover:bg-slate-50'
                                         }
                                     >
                                         <td className="px-4 py-3 font-medium">
                                             {course.nombre}
+                                            {course.isActive === false && <span className="ml-2 rounded-full bg-slate-200 px-2 py-1 text-xs text-slate-700">Inactivo</span>}
                                         </td>
 
                                         <td className="px-4 py-3">
                                             {course.career?.nombre || (
-                                                <span className="text-amber-400">
+                                                <span className="text-amber-700">
                                                     Sin carrera asignada
                                                 </span>
                                             )}
                                         </td>
 
-                                        <td className="px-4 py-3"><span className="rounded-full bg-violet-500/15 px-3 py-1 text-violet-200">{shiftLabel(course.shift)}</span></td>
+                                        <td className="px-4 py-3"><span className="rounded-full bg-rose-50 px-3 py-1 text-red-700">{shiftLabel(course.shift)}</span></td>
                                         <td className="px-4 py-3">
                                             {course.academicYear}
                                         </td>
@@ -309,8 +386,8 @@ export default function CoursesListView() {
                                                     type="button"
                                                     onClick={() => toggleStudents(course.id)}
                                                     className={`${buttonClass} ${isSelected
-                                                            ? 'bg-blue-700 text-white'
-                                                            : 'border border-blue-500/50 text-blue-300 hover:bg-blue-500/10'
+                                                            ? 'bg-red-700 text-white'
+                                                            : 'border border-red-200 text-red-700 hover:bg-red-50'
                                                         }`}
                                                 >
                                                     <Users size={16} />
@@ -327,20 +404,26 @@ export default function CoursesListView() {
                                                     onClick={() => openEdit(course)}
                                                     title="Editar curso"
                                                     aria-label={`Editar ${course.nombre}`}
-                                                    className={`${buttonClass} border border-slate-600 text-slate-200 hover:bg-slate-700`}
+                                                    className={`${buttonClass} border border-slate-300 text-slate-700 hover:bg-slate-100`}
                                                 >
                                                     <Pencil size={16} />
                                                 </button>
 
-                                                <button
+                                                {canManageCourseLifecycle && <button type="button" onClick={() => toggleStatus(course)}
+                                                    disabled={statusMutation.isPending}
+                                                    title={course.isActive === false ? 'Reactivar curso' : 'Desactivar curso'}
+                                                    className={`${buttonClass} border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-50`}>
+                                                    <Power size={16} /> {course.isActive === false ? 'Reactivar' : 'Desactivar'}
+                                                </button>}
+                                                {canManageCourseLifecycle && <button
                                                     type="button"
                                                     onClick={() => setDeletingCourse(course)}
                                                     title="Eliminar curso"
                                                     aria-label={`Eliminar ${course.nombre}`}
-                                                    className={`${buttonClass} border border-red-500/50 text-red-400 hover:bg-red-500/10`}
+                                                    className={`${buttonClass} border border-red-200 text-red-700 hover:bg-red-50`}
                                                 >
                                                     <Trash2 size={16} />
-                                                </button>
+                                                </button>}
                                             </div>
                                         </td>
                                     </tr>
@@ -375,18 +458,8 @@ export default function CoursesListView() {
                 formError={formError}
             />
 
-            <ConfirmDialog
-                open={Boolean(deletingCourse)}
-                title="Eliminar curso"
-                message={
-                    deletingCourse
-                        ? `¿Confirmás eliminar "${deletingCourse.nombre}"? Si tiene alumnos, docentes u horarios asociados, el backend puede impedir la eliminación.`
-                        : ''
-                }
-                confirmLabel="Eliminar"
-                onConfirm={handleDelete}
-                onCancel={() => setDeletingCourse(null)}
-            />
+            <CourseDeletionModal course={deletingCourse} onClose={() => setDeletingCourse(null)}
+                onDelete={handleDelete} saving={deleteMutation.isPending} serverError={actionError} />
         </div>
     );
 }

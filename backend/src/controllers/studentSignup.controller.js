@@ -1,4 +1,4 @@
-import { listSignupRequests, listSignupCourseGroups, reviewSignupRequests } from '../services/studentSignup.service.js';
+import { listSignupRequests, listSignupCourseGroups, reviewSignupRequests, archiveSignupRequest } from '../services/studentSignup.service.js';
 
 const run = async (res, fn) => {
   try { return res.json(await fn()); }
@@ -13,4 +13,5 @@ export const signupController = {
   groups: (req, res) => run(res, () => listSignupCourseGroups(req.user, req.query)),
   approve: (req, res) => run(res, () => reviewSignupRequests(req.user, req.body, 'APPROVED')),
   reject: (req, res) => run(res, () => reviewSignupRequests(req.user, req.body, 'REJECTED')),
+  archive: (req, res) => run(res, () => archiveSignupRequest(req.user, req.params.id)),
 };

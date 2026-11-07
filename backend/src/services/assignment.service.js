@@ -134,6 +134,7 @@ export const assignStudentToCourseService = async (body, requester) => {
     const studentId = toPositiveInt(body.studentId, 'studentId');
     const courseId = toPositiveInt(body.courseId, 'courseId');
     const course = await findAuthorizedCourse(courseId, requester);
+    if (course.isActive === false) throw new ServiceError('El curso está desactivado; reactivalo antes de crear nuevas asignaciones.', 409);
     const student = await assignmentRepository.findStudent(course.institutionId, studentId);
 
     if (!student) throw new ServiceError('Alumno no encontrado en la institución de este curso', 404);
@@ -180,6 +181,7 @@ export const assignTeacherToSubjectService = async (body, requester) => {
     const subjectId = toPositiveInt(body.subjectId, 'subjectId');
     const courseId = toPositiveInt(body.courseId, 'courseId');
     const course = await findAuthorizedCourse(courseId, requester);
+    if (course.isActive === false) throw new ServiceError('El curso está desactivado; reactivalo antes de crear nuevas asignaciones.', 409);
     const [teacher, subject] = await Promise.all([
         assignmentRepository.findTeacher(course.institutionId, teacherId),
         assignmentRepository.findSubject(course.institutionId, subjectId),
@@ -254,6 +256,7 @@ async function validateScheduleData(body, requester, excludeId = null) {
     assertTimeRange(startTime, endTime);
 
     const course = await findAuthorizedCourse(courseId, requester);
+    if (course.isActive === false) throw new ServiceError('El curso está desactivado; reactivalo para configurar horarios.', 409);
     const subject = await assignmentRepository.findSubject(course.institutionId, subjectId);
     if (!subject) throw new ServiceError('Materia no encontrada en la institución del curso', 404);
 

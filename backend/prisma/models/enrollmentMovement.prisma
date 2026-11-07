@@ -1,0 +1,17 @@
+// Historial de cambios de matrícula por promoción anual.
+// Los IDs/nombres de cursos son snapshots: no bloquean el archivo de cursos históricos.
+model EnrollmentMovement {
+  id               Int @id @default(autoincrement())
+  studentId        Int
+  student          StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sourceCourseId   Int
+  targetCourseId   Int
+  sourceLabel      String
+  targetLabel      String
+  sourceYear       Int
+  targetYear       Int
+  performedById    Int
+  createdAt        DateTime @default(now())
+  @@index([studentId, createdAt])
+  @@index([sourceCourseId, targetCourseId])
+}
