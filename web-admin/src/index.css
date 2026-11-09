@@ -256,3 +256,97 @@ body { margin: 0; min-width: 320px; background: #F7F7F8; color: #20242B; }
 }
 .i12-workspace .i12-module-square [class*="border-white"] {border-color:rgba(255,255,255,.19)!important}
 .i12-workspace .i12-admin-glass-card .i12-admin-count {color:#FFFFFF!important}
+
+/* ETAPA 37 · BLANCO PERLADO GLASS MÁS DEFINIDO.
+   SOLO tarjetas de Módulos principales y submenús de Gestión de usuarios y académica.
+   Reflejos y bordes dobles sutiles para distinguir el vidrio del fondo blanco. */
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card) {
+  background:
+    radial-gradient(ellipse 82% 62% at 1% 1%, rgba(255,255,255,.96), transparent 80%),
+    linear-gradient(145deg,
+      rgba(255,255,255,.78) 0%,
+      rgba(243,247,253,.72) 49%,
+      rgba(220,230,243,.76) 100%) !important;
+  border: 1px solid rgba(169,183,201,.91) !important;
+  outline: 1px solid rgba(255,255,255,.86) !important;
+  outline-offset: -3px;
+  box-shadow:
+    0 19px 44px rgba(35,51,73,.18),
+    0 5px 12px rgba(35,51,73,.08),
+    inset 0 2px 1px rgba(255,255,255,.98),
+    inset 0 -2px 3px rgba(152,169,194,.17),
+    inset 2px 0 3px rgba(255,255,255,.74) !important;
+  backdrop-filter: blur(26px) saturate(150%) contrast(105%);
+  -webkit-backdrop-filter: blur(26px) saturate(150%) contrast(105%);
+  transition:
+    transform .24s ease, box-shadow .24s ease,
+    background .24s ease, border-color .24s ease !important;
+}
+
+/* Reflejo de superficie: brillo visible sin afectar la legibilidad. */
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card)::before {
+  background:
+    radial-gradient(ellipse 125% 74% at -8% -18%, rgba(255,255,255,.90), transparent 61%),
+    linear-gradient(124deg, rgba(255,255,255,.40) 0%, rgba(255,255,255,.19) 25%, transparent 43%),
+    linear-gradient(180deg, rgba(255,255,255,.11), transparent 55%);
+  opacity: 1;
+}
+
+/* Una luz tenue en el borde derecho e inferior refuerza la profundidad. */
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card)::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset -2px -2px 5px rgba(105,124,148,.10), inset 0 1px 0 rgba(255,255,255,.85);
+}
+
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card):hover {
+  background:
+    radial-gradient(ellipse 85% 60% at 1% 1%, rgba(255,255,255,1), transparent 80%),
+    linear-gradient(145deg,
+      rgba(255,255,255,.89) 0%,
+      rgba(245,249,255,.80) 50%,
+      rgba(221,232,246,.82) 100%) !important;
+  border-color: rgba(140,162,191,.95) !important;
+  box-shadow:
+    0 25px 52px rgba(35,51,73,.22),
+    0 9px 18px rgba(35,51,73,.10),
+    inset 0 2px 1px rgba(255,255,255,1),
+    inset 0 -2px 3px rgba(150,168,193,.22) !important;
+}
+
+/* Texto con contraste sobre las superficies claras. */
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card) h3,
+.i12-workspace .i12-admin-glass-card [class*="text-slate-900"],
+.i12-workspace .i12-admin-glass-card .i12-admin-count {
+  color: #1C2839 !important;
+}
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card) p:not([class*="uppercase"]),
+.i12-workspace .i12-admin-glass-card .i12-admin-muted,
+.i12-workspace .i12-admin-glass-card [class*="text-slate-600"],
+.i12-workspace .i12-admin-glass-card [class*="text-slate-700"],
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card) :is([class*="text-slate-200"], [class*="text-slate-300"], [class*="text-slate-400"]) {
+  color: #526176 !important;
+}
+.i12-workspace .i12-module-square p[class*="uppercase"] { color: #BA1724 !important; }
+.i12-workspace .i12-module-square [class*="border-white"] {
+  border-color: rgba(170,184,204,.46) !important;
+}
+.i12-workspace .i12-admin-glass-card .i12-admin-arrow {
+  border-color: rgba(165,181,201,.60) !important;
+  background: rgba(255,255,255,.55) !important;
+  color: #42536B !important;
+}
+.i12-workspace .i12-admin-glass-card:hover .i12-admin-arrow {
+  border-color: rgba(141,160,186,.78) !important;
+  background: rgba(255,255,255,.78) !important;
+  color: #233249 !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .i12-workspace :is(.i12-module-square, .i12-admin-glass-card) {
+    transition: none !important;
+  }
+}
