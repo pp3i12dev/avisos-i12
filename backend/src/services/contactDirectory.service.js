@@ -1,5 +1,5 @@
 import { getPrisma } from '../config/prisma.js';
-import { isStudentDirectoryUser, canViewContactField, validateContactPrefs } from '../utils/contactDirectoryPolicy.js';
+import { isStudentDirectoryUser, validateContactPrefs, visibleContactWhere, visibleContactData } from '../utils/contactDirectoryPolicy.js';
 
 const DIRECTORY_ROLES = ['DIRECTOR','PRECEPTOR','TEACHER','STUDENT'];
 const SHIFTS = ['MANANA','TARDE','NOCHE'];
@@ -94,7 +94,11 @@ export async function searchDirectory(actor,query={}) {
   if (!roleFilters.length) return {results:[],hasMore:false};
   const page=Math.min(50,Math.max(1,Number(query.page)||1));
   const take=25;
-  const rows=await db.user.findMany({where:{institutionId,isActive:true,deletedAt:null,OR:roleFilters,...searchWhere(query.search)},
+  // Seguridad y paginación coherentes: Prisma descarta contactos no visibles
+  // ANTES de aplicar skip/take; no basta con ocultar sus tarjetas en React.
+  const authorizedContactWhere = visibleContactWhere(actor.roles || []);
+  const rows=await db.user.findMany({where:{institutionId,isActive:true,deletedAt:null,
+    AND:[{OR:roleFilters},searchWhere(query.search),authorizedContactWhere]},
     select:{id:true,firstName:true,lastName:true,email:true,telefono:true,isSuperAdmin:true,
       contactPreference:{select:{contactEmail:true,contactPhone:true,emailVisibleTo:true,phoneVisibleTo:true}},
       directorProfile:{select:{position:true}},
@@ -105,16 +109,16 @@ export async function searchDirectory(actor,query={}) {
       studentProfile: studentOnly?false:{select:{careerMemberships:{select:{careerId:true,career:{select:{nombre:true}}}}}},
     },orderBy:[{lastName:'asc'},{firstName:'asc'},{id:'asc'}],skip:(page-1)*take,take:take+1});
   const sliced=rows.slice(0,take);
-  return {page,hasMore:rows.length>take,results:sliced.map(u=>({
+  const results=sliced.map(u=>({
     id:u.id,firstName:u.firstName,lastName:u.lastName,roles:directoryRole(u),
     position:u.directorProfile?.position||null,specialty:u.teacherProfile?.specialty||null,
     coverages:u.preceptorProfile?.coverages.map(x=>({careerId:x.careerId,career:x.career.nombre,shift:x.shift}))||[],
     teaching:u.teacherProfile?.teacherSubjects.map(x=>({careerId:x.course.careerId,career:x.course.career?.nombre,shift:x.course.shift,
       subjectId:x.subject.id,subject:x.subject.nombre}))||[],
     careers:u.studentProfile?.careerMemberships.map(x=>x.career.nombre)||[],
-    email:canViewContactField(u.contactPreference?.emailVisibleTo,actor.roles)?u.contactPreference.contactEmail||u.email:null,
-    phone:canViewContactField(u.contactPreference?.phoneVisibleTo,actor.roles)?u.contactPreference.contactPhone||u.telefono:null,
-  }))};
+    ...visibleContactData(u,actor.roles||[]),
+  })).filter(u=>Boolean(u.email || u.phone));
+  return {page,hasMore:rows.length>take,results};
 }
 export async function myContactPreferences(actor) {
   if (!actor?.id) fail('Sesión inválida.',401);

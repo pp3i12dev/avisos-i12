@@ -20,3 +20,45 @@ export function validateContactPrefs(body={}) {
   };
   return {contactEmail:contactEmail||null,contactPhone:contactPhone||null,emailVisibleTo:rolesFor('emailVisibleTo'),phoneVisibleTo:rolesFor('phoneVisibleTo')};
 }
+
+
+// Un contacto aparece en el directorio SOLO cuando quien consulta puede ver
+// por lo menos un dato existente. El filtro se aplica ANTES de paginar en Prisma
+// para no devolver tarjetas vacías ni saltos de página por contactos privados.
+export function visibleContactWhere(viewerRoles = []) {
+  const roles = Array.isArray(viewerRoles) ? viewerRoles.filter(role => CONTACT_ROLES.includes(role)) : [];
+  if (!roles.length) return { id: { equals: -1 } }; // Ningún rol de consulta autorizado.
+  return {
+    OR: [
+      {
+        AND: [
+          { contactPreference: { is: { emailVisibleTo: { hasSome: roles } } } },
+          { OR: [
+            { email: { not: '' } },
+            { contactPreference: { is: { contactEmail: { not: null } } } },
+          ] },
+        ],
+      },
+      {
+        AND: [
+          { contactPreference: { is: { phoneVisibleTo: { hasSome: roles } } } },
+          { OR: [
+            { AND: [{ telefono: { not: null } }, { telefono: { not: '' } }] },
+            { contactPreference: { is: { contactPhone: { not: null } } } },
+          ] },
+        ],
+      },
+    ],
+  };
+}
+
+// Segunda validación sobre el resultado seleccionado: solo devolver la
+// información visible para el visitante, nunca listas de permisos ajenos.
+export function visibleContactData(user, viewerRoles = []) {
+  const pref = user?.contactPreference;
+  const email = canViewContactField(pref?.emailVisibleTo, viewerRoles)
+    ? (pref?.contactEmail?.trim() || user?.email?.trim() || null) : null;
+  const phone = canViewContactField(pref?.phoneVisibleTo, viewerRoles)
+    ? (pref?.contactPhone?.trim() || user?.telefono?.trim() || null) : null;
+  return { email, phone };
+}
