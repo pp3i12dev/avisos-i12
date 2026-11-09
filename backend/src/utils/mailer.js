@@ -1,4 +1,7 @@
 import nodemailer from 'nodemailer';
+import { createBrevoTransport } from './brevoTransport.js';
+import { getPrisma } from '../config/prisma.js';
+import { resolveInstitutionMail } from '../services/integrationSettings.service.js';
 import { earlyNoticeCategory, institutionCategory, brandedFrom, brandedPrefix, FULL_INSTITUTION_NAME } from './emailBranding.js';
 
 const ROLE_LABELS = {
@@ -9,6 +12,10 @@ const ROLE_LABELS = {
 let transporter;
 export const getTransporter = () => {
   if (!transporter) {
+    if (process.env.BREVO_API_KEY) {
+      transporter = createBrevoTransport({ apiKey: process.env.BREVO_API_KEY });
+      return transporter;
+    }
     const port = Number(process.env.SMTP_PORT) || 587;
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -20,21 +27,45 @@ export const getTransporter = () => {
   return transporter;
 };
 
+// Proveedor por institución: las claves guardadas en Neon prevalecen sobre .env.
+// Las contraseñas nunca salen del backend y el servidor consulta cambios sin reiniciarse.
+export async function sendConfiguredMail(message, selectedInstitutionId = null) {
+  let institutionId = selectedInstitutionId;
+  if (!institutionId && typeof message.to === 'string') {
+    const recipient = await getPrisma().user.findUnique({ where: { email: message.to.toLowerCase() }, select: { institutionId: true } });
+    institutionId = recipient?.institutionId;
+  }
+  const cfg = await resolveInstitutionMail(institutionId);
+  if (cfg.provider === 'DISABLED') {
+    const error = new Error('El correo institucional no está configurado o se encuentra deshabilitado.');
+    error.code = 'MAIL_NOT_CONFIGURED'; error.status = 503; throw error;
+  }
+  if (cfg.provider === 'GMAIL') {
+    const sender = String(message.from || '').match(/^\s*"([^"]+)"/);
+    return nodemailer.createTransport({ host: 'smtp.gmail.com', port: 587, secure: false,
+      requireTLS: true, connectionTimeout: 12000, greetingTimeout: 10000, socketTimeout: 20000,
+      auth: { user: cfg.user, pass: cfg.pass } }).sendMail({
+      ...message, from: `"${sender?.[1] || 'Avisos I12'}" <${cfg.user}>`,
+    });
+  }
+  return getTransporter().sendMail(message);
+}
+
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[c]));
 
-export const sendInvitationEmail = async ({ to, token, role, expiresAt }) => {
+export const sendInvitationEmail = async ({ to, token, role, expiresAt, institutionId }) => {
   const link = `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')}/aceptar-invitacion/${encodeURIComponent(token)}`;
   const roleLabel = ROLE_LABELS[role] ?? role;
   const expires = expiresAt.toLocaleString('es-AR', { dateStyle: 'long', timeStyle: 'short' });
-  return getTransporter().sendMail({
+  return sendConfiguredMail({
     from: brandedFrom('TE INVITA A UNIRTE'),
     to,
     subject: `${brandedPrefix('TE INVITA A UNIRTE')} Te invitaron como ${roleLabel}`,
     text: `Fuiste invitado como ${roleLabel}.\n\nAceptá la invitación en: ${link}\n\nVence el ${expires}.`,
     html: `<div style="font-family:Arial,sans-serif;max-width:480px"><div style="background:#C61515;color:#fff;padding:18px;border-radius:10px 10px 0 0"><strong>ISFTNº12-TE INVITA A UNIRTE</strong></div><h2>Completá tu inscripción institucional</h2><p>Fuiste invitado como <strong>${escapeHtml(roleLabel)}</strong>.</p><p><a href="${escapeHtml(link)}" style="display:inline-block;padding:10px 20px;background:#C61515;color:#fff;border-radius:6px;text-decoration:none">Aceptar invitación</a></p><p style="color:#666;font-size:13px">Esta invitación vence el ${escapeHtml(expires)}.</p><p style="color:#666;font-size:13px">Si no esperabas este correo, podés ignorarlo.</p></div>`,
-  });
+  }, institutionId);
 };
 
 
@@ -86,7 +117,7 @@ export const sendEarlyNoticeEmail = ({ to, title, message, notificationType, not
   const tableRows = rows.map((r) => `<tr><td style="padding:10px;border-bottom:1px solid #e2e8f0">${escapeHtml(r.date)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0">${escapeHtml(r.time)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0">${escapeHtml(r.subject)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0">${escapeHtml(r.course)}</td></tr>`).join('');
   const html = `<div style="background:#f1f5f9;padding:24px 12px;font-family:Arial,sans-serif;color:#0f172a"><div style="max-width:760px;margin:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden"><div style="background:#C61515;padding:22px;color:#fff"><b>${escapeHtml(`${FULL_INSTITUTION_NAME} · ${emailCategory}`)}</b><h2 style="color:#fff;margin:10px 0 0">${escapeHtml(title)}</h2></div><div style="padding:24px"><div style="background:${background};color:${color};font-weight:bold;font-size:18px;padding:16px;border-radius:8px;text-align:center">${escapeHtml(status)}</div><p style="font-size:16px;line-height:1.7">${escapeHtml(summary)}</p><h3 style="font-size:16px">Clases afectadas (${rows.length})</h3><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><thead><tr style="background:#e2e8f0"><th style="padding:10px;text-align:left">Fecha</th><th style="padding:10px;text-align:left">Horario</th><th style="padding:10px;text-align:left">Materia</th><th style="padding:10px;text-align:left">Curso</th></tr></thead><tbody>${tableRows}</tbody></table></div><p style="color:#475569;font-size:13px;line-height:1.6">${escapeHtml(generated)}</p>${caution ? `<p style="color:${color};font-weight:bold">${escapeHtml(caution)}</p>` : ''}<a href="${escapeHtml(url)}" style="display:inline-block;margin-top:14px;padding:12px 18px;background:#C61515;color:white;text-decoration:none;border-radius:7px">Ver aviso en Avisos I12</a><p style="color:#64748b;font-size:12px;margin-top:28px">Correo automático de Avisos I12.</p></div></div></div>`;
   const subjectName = rows.length === 1 ? rows[0].subject : `${rows.length} clases afectadas`;
-  return getTransporter().sendMail({ from: brandedFrom(emailCategory), to, subject: `${brandedPrefix(emailCategory)} ${status} — ${subjectName}`, text, html });
+  return sendConfiguredMail({ from: brandedFrom(emailCategory), to, subject: `${brandedPrefix(emailCategory)} ${status} — ${subjectName}`, text, html }, notice?.institutionId);
 };
 
 
@@ -136,18 +167,18 @@ export const sendInstitutionCommunicationEmail = ({ to, title, message, notifica
   lines.push(`Consultá Avisos I12: ${url}`);
   const text = lines.join('\n\n');
   const html = `<div style="background:#eef2f7;padding:24px;font-family:Arial,sans-serif;color:#17253b"><div style="max-width:720px;margin:auto;background:white;border-radius:12px;overflow:hidden;border:1px solid #dbe3ef"><div style="background:#C61515;color:white;padding:22px"><b>${escapeHtml(`${FULL_INSTITUTION_NAME} · ${emailCategory}`)}</b><h2 style="color:white;margin:12px 0 0">${escapeHtml(action)} · ${escapeHtml(kind)}</h2></div><div style="padding:24px"><h2>${escapeHtml(event.title)}</h2>${lines.slice(3,-1).map(line => `<p style="white-space:pre-wrap;line-height:1.5">${escapeHtml(line)}</p>`).join('')}<p style="margin-top:24px"><a style="display:inline-block;padding:12px 18px;background:#C61515;color:white;border-radius:7px;text-decoration:none" href="${escapeHtml(url)}">Ver en Avisos I12</a></p><p style="font-size:12px;color:#64748b">Correo automático institucional.</p></div></div></div>`;
-  return getTransporter().sendMail({ from: brandedFrom(emailCategory), to,
-    subject: `${brandedPrefix(emailCategory)} ${action}: ${event.title}`, text, html });
+  return sendConfiguredMail({ from: brandedFrom(emailCategory), to,
+    subject: `${brandedPrefix(emailCategory)} ${action}: ${event.title}`, text, html }, event?.institutionId);
 };
 
 // Nunca se envía la contraseña por correo: sólo un enlace de un uso, de 15 minutos.
 export const sendPasswordResetEmail = async ({ to, token, expiresAt }) => {
-  if (!process.env.FRONTEND_URL || !process.env.SMTP_HOST || !process.env.MAIL_FROM)
-    throw new Error('Configurá FRONTEND_URL, SMTP_HOST y MAIL_FROM.');
+  if (!process.env.FRONTEND_URL)
+    throw new Error('Configurá FRONTEND_URL en el servidor.');
   const url = new URL('/restablecer-contrasena', process.env.FRONTEND_URL);
   url.searchParams.set('token', token);
   const link = url.toString();
-  return getTransporter().sendMail({
+  return sendConfiguredMail({
     from: brandedFrom('RECUPERACIÓN DE CONTRASEÑA'),
     to,
     subject: `${brandedPrefix('RECUPERACIÓN DE CONTRASEÑA')} Restablecer acceso`,
@@ -166,7 +197,7 @@ export const sendStudentSignupDecisionEmail = ({ to, name, status, reason }) => 
   const message = approved
     ? 'Tu institución aprobó tu solicitud. Ya podés iniciar sesión en Avisos I12.'
     : `Tu institución no aprobó tu solicitud. Motivo: ${reason || 'Consultá con la institución'}`;
-  return getTransporter().sendMail({
+  return sendConfiguredMail({
     from: brandedFrom('INSCRIPCIÓN DE ALUMNOS'), to,
     subject: `${brandedPrefix('INSCRIPCIÓN DE ALUMNOS')} ${title}`,
     text: `Hola, ${name}.\n\n${message}\n\n${approved ? `Ingresá desde: ${url}` : 'Podés contactar a la institución para consultar.'}`,
@@ -176,14 +207,14 @@ export const sendStudentSignupDecisionEmail = ({ to, name, status, reason }) => 
 
 
 /** Confirmación de correo para cuentas públicas, con enlace de un solo uso. */
-export const sendAccountVerificationEmail = async ({ to, firstName, token }) => {
+export const sendAccountVerificationEmail = async ({ to, firstName, token, institutionId }) => {
   const url = `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')}/verificar-correo?token=${encodeURIComponent(token)}`;
   const subject = `${brandedPrefix('VERIFICA TU CORREO')} Activá tu cuenta`;
-  return getTransporter().sendMail({
+  return sendConfiguredMail({
     from: brandedFrom('VERIFICA TU CORREO'), to, subject,
     text: `Hola ${firstName}. Confirmá tu correo para Avisos I12:\n${url}\n\nEl enlace vence en 24 horas. Si no creaste esta cuenta, ignorá el mensaje.`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden"><div style="background:#C61515;color:white;padding:22px;font-weight:bold">ISFTNº12 · VERIFICACIÓN DE CORREO</div><div style="padding:24px;color:#20242b"><h2>Confirmá tu correo</h2><p>Hola ${escapeHtml(firstName)}. Para habilitar tu cuenta en Avisos I12, verificá tu correo electrónico.</p><a href="${escapeHtml(url)}" style="background:#C61515;color:white;padding:12px 18px;border-radius:7px;text-decoration:none;display:inline-block">Verificar mi correo</a><p style="color:#64748b;font-size:13px">Enlace válido por 24 horas y de un solo uso. Si no creaste esta cuenta, ignorá el correo.</p></div></div>`,
-  });
+  }, institutionId);
 };
 
 
@@ -194,7 +225,7 @@ export const sendStaffSignupDecisionEmail = ({ to, firstName, role, status, reas
   const title = granted ? 'Cuenta institucional aprobada' : 'Solicitud de acceso rechazada';
   const details = granted ? 'Ya podés ingresar a Avisos I12 con tu correo y contraseña.' : `Motivo: ${reason || 'Consultá a tu institución.'}`;
   const link = `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')}/login`;
-  return getTransporter().sendMail({ from: brandedFrom('ACCESO INSTITUCIONAL'), to,
+  return sendConfiguredMail({ from: brandedFrom('ACCESO INSTITUCIONAL'), to,
     subject: `${brandedPrefix('ACCESO INSTITUCIONAL')} ${title}`,
     text: `Hola ${firstName}. ${title} para el rol ${roleLabel}.\n${details}\n${link}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto"><div style="background:#C61515;color:white;padding:20px;font-weight:bold">ISFTNº12 · ACCESO INSTITUCIONAL</div><div style="padding:22px"><h2>${escapeHtml(title)}</h2><p>Hola ${escapeHtml(firstName)}. Tu solicitud de ${escapeHtml(roleLabel)} fue ${granted ? 'aprobada' : 'rechazada'}.</p><p>${escapeHtml(details)}</p><a href="${escapeHtml(link)}">Ingresar a Avisos I12</a></div></div>`,

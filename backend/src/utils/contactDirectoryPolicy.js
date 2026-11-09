@@ -10,11 +10,13 @@ export function validateContactPrefs(body={}) {
   const contactEmail=typeof body.contactEmail==='string'?body.contactEmail.trim().toLowerCase():'';
   if(contactEmail.length>200 || (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)))
     fail('Correo de contacto inválido.');
+  const contactPhone=typeof body.contactPhone==='string'?body.contactPhone.trim():'';
+  if(contactPhone.length>35 || (contactPhone && !/^\+?[\d\s().-]+$/.test(contactPhone))) fail('Teléfono de contacto inválido.');
   const rolesFor=name=>{
     const values=body[name];
     if(!Array.isArray(values)||values.length>CONTACT_ROLES.length||values.some(x=>!CONTACT_ROLES.includes(x))||new Set(values).size!==values.length)
       fail(`Roles inválidos para ${name}.`);
     return values;
   };
-  return {contactEmail:contactEmail||null,emailVisibleTo:rolesFor('emailVisibleTo'),phoneVisibleTo:rolesFor('phoneVisibleTo')};
+  return {contactEmail:contactEmail||null,contactPhone:contactPhone||null,emailVisibleTo:rolesFor('emailVisibleTo'),phoneVisibleTo:rolesFor('phoneVisibleTo')};
 }

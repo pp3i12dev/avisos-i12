@@ -10,6 +10,7 @@ async function request(path, token, method = 'GET', data) {
 }
 export const institutionCommunicationService = {
   list: token => request('', token),
+  bulk: (token, data) => request('/bulk', token, 'POST', data),
   options: token => request('/options', token),
   get: (token, id) => request(`/${id}`, token),
   create: (token, data) => request('', token, 'POST', data),

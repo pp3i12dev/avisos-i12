@@ -35,6 +35,7 @@ const execute = (res, callback, successStatus = 200) => {
 };
 
 export const earlyNoticeController = {
+    bulkAction(req,res) { execute(res, () => service.bulkAction(req.user, req.body)); },
     createMultiple(req, res) {
         execute(res, () => service.createMultiple(req.user, req.body), 201);
     },

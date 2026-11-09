@@ -2,13 +2,13 @@
 self.addEventListener('push', event => {
   let payload = {};
   try { payload = event.data ? event.data.json() : {}; } catch { payload = {}; }
-  const title = String(payload.title || 'EduQuest').slice(0, 100);
-  const body = String(payload.body || 'Tenés una notificación en EduQuest.').slice(0, 240);
+  const title = String(payload.title || 'Avisos I12').slice(0, 100);
+  const body = String(payload.body || 'Tenés una notificación en Avisos I12.').slice(0, 240);
   const url = typeof payload.url === 'string' && payload.url.startsWith('/') && !payload.url.startsWith('//')
     ? payload.url : '/dashboard';
   event.waitUntil(self.registration.showNotification(title, {
     body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png',
-    tag: String(payload.tag || 'eduquest-novedad'), renotify: true,
+    tag: String(payload.tag || 'avisos-i12-novedad'), renotify: true,
     data: { url },
   }));
 });

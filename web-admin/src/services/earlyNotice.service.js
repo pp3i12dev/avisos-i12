@@ -122,6 +122,8 @@ export const earlyNoticeService = {
         );
     },
 
+    bulk(token, data) { return request('/early-notices/bulk', token, { method: 'POST', body: JSON.stringify(data) }); },
+
     deleteHistory(token, id) {
         return request(`/early-notices/${id}/history`, token, { method: 'DELETE' });
     },

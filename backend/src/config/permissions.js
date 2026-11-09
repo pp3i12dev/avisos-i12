@@ -1,5 +1,6 @@
 
 export const PERMISSIONS = {
+    'integrations:manage': ['DIRECTOR'],
     'user:manageRoles': ['DIRECTOR', 'PRECEPTOR'],
 
     'institution:manage': ['DIRECTOR'],

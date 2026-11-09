@@ -550,7 +550,7 @@ export default function InvitationsListView() {
                         </h1>
 
                         <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                            Administrá las invitaciones para incorporar personas a EduQuest.
+                            Administrá las invitaciones para incorporar personas a Avisos I12.
                         </p>
                     </div>
                 </div>
@@ -872,7 +872,7 @@ export default function InvitationsListView() {
                             </p>
 
                             <span className="text-xs text-slate-500">
-                                Gestión de accesos · EduQuest
+                                Gestión de accesos · Avisos I12
                             </span>
                         </div>
                     </>

@@ -33,20 +33,21 @@ export async function queueRecipientBatch(tx, {
     }));
     if (emails.length) await tx.notificationDelivery.createMany({ data: emails, skipDuplicates: true });
   }
-  if (process.env.WEB_PUSH_ENABLED === 'true') {
-    const subscriptions = await tx.webPushSubscription.findMany({
-      where: { userId: { in: users.map(u=>u.id) }, disabledAt: null }, select: { id: true, userId: true },
-    });
-    const byUser = new Map();
-    for (const device of subscriptions) {
-      if (!byUser.has(device.userId)) byUser.set(device.userId, []);
-      byUser.get(device.userId).push(device.id);
-    }
-    for (const chunk of slices(notifications)) {
-      const deliveries = chunk.flatMap(n => (byUser.get(n.userId) || []).map(subscriptionId=>({ subscriptionId, notificationId: n.id })));
-      for (const subchunk of slices(deliveries)) if (subchunk.length) {
-        await tx.webPushDelivery.createMany({ data: subchunk, skipDuplicates: true });
-      }
+  // Encolar independientemente de WEB_PUSH_ENABLED del .env: la habilitación
+  // se administra por institución desde Configuración y se verifica al entregar.
+  // De este modo, habilitar Push desde React no requiere reiniciar el backend.
+  const subscriptions = await tx.webPushSubscription.findMany({
+    where: { userId: { in: users.map(u => u.id) }, disabledAt: null }, select: { id: true, userId: true },
+  });
+  const byUser = new Map();
+  for (const device of subscriptions) {
+    if (!byUser.has(device.userId)) byUser.set(device.userId, []);
+    byUser.get(device.userId).push(device.id);
+  }
+  for (const chunk of slices(notifications)) {
+    const deliveries = chunk.flatMap(n => (byUser.get(n.userId) || []).map(subscriptionId => ({ subscriptionId, notificationId: n.id })));
+    for (const subchunk of slices(deliveries)) if (subchunk.length) {
+      await tx.webPushDelivery.createMany({ data: subchunk, skipDuplicates: true });
     }
   }
   return users.length;

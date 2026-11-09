@@ -210,6 +210,9 @@ export default function ProfileView() {
         lastName: '',
         email: '',
         telefono: '',
+        legajoStudent: '',
+        legajoTeacher: '',
+        legajoPreceptor: '',
     });
 
     const [passwordForm, setPasswordForm] = useState({
@@ -250,6 +253,9 @@ export default function ProfileView() {
                     lastName: data.lastName || '',
                     email: data.email || '',
                     telefono: data.telefono || '',
+                    legajoStudent: data.profiles?.student?.legajoStudent || '',
+                    legajoTeacher: data.profiles?.teacher?.legajoTeacher || '',
+                    legajoPreceptor: data.profiles?.preceptor?.legajoPreceptor || '',
                 });
             } catch (error) {
                 if (!cancelled) {
@@ -322,6 +328,9 @@ export default function ProfileView() {
                         lastName: form.lastName.trim(),
                         email: form.email.trim(),
                         telefono,
+                        ...(profile?.profiles?.student ? {legajoStudent: form.legajoStudent.trim()} : {}),
+                        ...(profile?.profiles?.teacher ? {legajoTeacher: form.legajoTeacher.trim()} : {}),
+                        ...(profile?.profiles?.preceptor ? {legajoPreceptor: form.legajoPreceptor.trim()} : {}),
                     }),
                 }
             );
@@ -333,6 +342,9 @@ export default function ProfileView() {
                 lastName: updated.lastName || '',
                 email: updated.email || '',
                 telefono: updated.telefono || '',
+                legajoStudent: updated.profiles?.student?.legajoStudent || '',
+                legajoTeacher: updated.profiles?.teacher?.legajoTeacher || '',
+                legajoPreceptor: updated.profiles?.preceptor?.legajoPreceptor || '',
             });
 
             updateUserContext?.({
@@ -618,6 +630,19 @@ export default function ProfileView() {
                             </div>
                         </div>
 
+                        {/* El legajo es opcional, incluso para docentes y preceptores.
+                            Se guarda junto a los demás datos personales. */}
+                        {(profiles.student || profiles.teacher || profiles.preceptor) && (
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                {profiles.student && <FormField label="Legajo de alumno (opcional)" value={form.legajoStudent}
+                                    onChange={e=>handleProfileChange('legajoStudent',e.target.value)} maxLength={80} placeholder="Sin legajo informado" />}
+                                {profiles.teacher && <FormField label="Legajo docente (opcional)" value={form.legajoTeacher}
+                                    onChange={e=>handleProfileChange('legajoTeacher',e.target.value)} maxLength={80} placeholder="Sin legajo informado" />}
+                                {profiles.preceptor && <FormField label="Legajo de preceptor (opcional)" value={form.legajoPreceptor}
+                                    onChange={e=>handleProfileChange('legajoPreceptor',e.target.value)} maxLength={80} placeholder="Sin legajo informado" />}
+                            </div>
+                        )}
+
                         <FormField
                             label="DNI"
                             icon={IdCard}
@@ -626,8 +651,7 @@ export default function ProfileView() {
                         />
 
                         <p className="text-xs leading-relaxed text-slate-400">
-                            El DNI y los datos institucionales no pueden
-                            modificarse desde esta pantalla.
+                            El DNI y la institución no pueden modificarse desde esta pantalla. El legajo es opcional.
                         </p>
 
                         <Feedback
@@ -750,7 +774,7 @@ export default function ProfileView() {
                         </h2>
 
                         <p className="text-sm text-slate-400">
-                            Cambiá tu contraseña de acceso a EduQuest.
+                            Cambiá tu contraseña de acceso a Avisos I12.
                         </p>
                     </div>
                 </div>

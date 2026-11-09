@@ -32,12 +32,15 @@ function validateIdentity(body) {
 
 async function queueVerification(db, user) {
   const token = randomBytes(32).toString('base64url');
-  await db.emailVerificationToken.create({ data: { userId: user.id, tokenHash: sha(token), expiresAt: new Date(Date.now() + EMAIL_TTL) } });
+  const record = await db.emailVerificationToken.create({ data: { userId: user.id, tokenHash: sha(token), expiresAt: new Date(Date.now() + EMAIL_TTL) } });
   try {
-    await sendAccountVerificationEmail({ to: user.email, firstName: user.firstName, token });
+    await sendAccountVerificationEmail({ to: user.email, firstName: user.firstName, token, institutionId: user.institutionId });
+    // Guardar el estado evita confundir un enlace creado con un email efectivamente aceptado.
+    await db.emailVerificationToken.update({ where: { id: record.id }, data: { sentAt: new Date(), lastError: null } }).catch(error => console.error('[Avisos I12][Registro] No se pudo guardar sentAt:', error));
     return true;
   } catch (error) {
     console.error('[Avisos I12][Registro] No fue posible enviar la verificación:', error.message);
+    await db.emailVerificationToken.update({ where: { id: record.id }, data: { lastError: String(error.message || error).slice(0, 600) } }).catch(() => {});
     return false; // El usuario puede solicitar reenvío cuando SMTP se restablezca.
   }
 }
@@ -56,7 +59,6 @@ export async function registerPublicAccount(data = {}, kind = 'STUDENT') {
     const specialty = plain(data.specialty, 200);
     const position = plain(data.position, 120);
     const shift = data.shift ? String(data.shift).toUpperCase() : null;
-    if (['TEACHER', 'PRECEPTOR'].includes(kind) && !legajo) invalid('El legajo es obligatorio para docentes y preceptores.');
     if (shift && !['MANANA','TARDE','NOCHE'].includes(shift)) invalid('Turno inválido.');
     const coverages = kind === 'PRECEPTOR'
       ? await validatePreceptorCoverages(db, institutionId, data.coverages) : null;
@@ -74,9 +76,9 @@ export async function registerPublicAccount(data = {}, kind = 'STUDENT') {
       passwordHash: await hashPassword(data.password), institutionId,
       isActive: false, signupStatus: 'PENDING',
       ...(isStudent
-        ? { studentProfile: { create: { legajoStudent: `WEB-${randomBytes(10).toString('hex').toUpperCase()}` } } }
+        ? { studentProfile: { create: {} } }
         : { staffSignup: { create: staff } }),
-    }, select: { id: true, email: true, firstName: true } });
+    }, select: { id: true, email: true, firstName: true, institutionId: true } });
   } catch (error) {
     if (error.code === 'P2002') invalid('Ese DNI o correo ya está registrado. Iniciá sesión o recuperá tu contraseña.', 409);
     throw error;
@@ -85,7 +87,7 @@ export async function registerPublicAccount(data = {}, kind = 'STUDENT') {
   return { registered: true, verificationEmailSent: sent,
     message: sent
       ? (isStudent ? 'Revisá tu correo para activar tu cuenta. No necesitás aprobación administrativa.' : 'Verificá tu correo. Luego tu solicitud deberá ser aprobada por la institución.')
-      : 'La cuenta fue creada, pero no pudimos enviar el correo. Solicitá un nuevo enlace de verificación desde el acceso.' };
+      : 'La cuenta fue creada, pero el envío de verificación falló. Revisá que la dirección haya habilitado SMTP desde Configuración; después solicitá un enlace nuevo desde «Reenviar verificación». No necesitás aprobación de dirección.' };
 }
 
 export async function verifyRegistrationEmail(token) {
@@ -117,10 +119,10 @@ export async function resendVerification(email) {
   const normalized = plain(email, 200).toLowerCase();
   if (!normalized || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) invalid('Ingresá un correo válido.');
   const db = getPrisma();
-  const user = await db.user.findUnique({ where: { email: normalized }, select: { id: true, email: true, firstName: true, emailVerifiedAt: true, deletedAt: true, isActive: true } });
+  const user = await db.user.findUnique({ where: { email: normalized }, select: { id: true, email: true, firstName: true, institutionId: true, emailVerifiedAt: true, deletedAt: true, isActive: true } });
   if (user && !user.emailVerifiedAt && !user.deletedAt && !user.isActive) {
-    const recent = await db.emailVerificationToken.findFirst({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
-    if (!recent || Date.now() - recent.createdAt.getTime() >= 2 * 60 * 1000) {
+    const recent = await db.emailVerificationToken.findFirst({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, select: { createdAt: true, sentAt: true } });
+    if (!recent?.sentAt || Date.now() - recent.sentAt.getTime() >= 2 * 60 * 1000) {
       await db.emailVerificationToken.deleteMany({ where: { userId: user.id, usedAt: null } });
       await queueVerification(db, user);
     }

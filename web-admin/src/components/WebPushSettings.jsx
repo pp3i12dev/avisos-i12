@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import {
   prepareWebPush, activatePush, deactivatePush,
   currentPushStatus, pushSupport, testWebPush,
-  rememberPushPreference, restorePreferredPush,
+  rememberPushPreference, restorePreferredPush, rememberPushOwner, forgetPushOwner,
 } from '../services/webPush';
 
 export default function WebPushSettings({ compact = false }) {
@@ -22,7 +22,7 @@ export default function WebPushSettings({ compact = false }) {
     if (!token || userId === null || userId === undefined) return undefined;
     let alive = true;
     setLoading(true);
-    prepareWebPush()
+    prepareWebPush(userId)
       .then(async ready => {
         let active = await currentPushStatus(ready);
         let subscription = ready.existingSubscription;
@@ -30,7 +30,15 @@ export default function WebPushSettings({ compact = false }) {
         if (active) {
           // Las cuentas que ya tenían Push activo conservan esa decisión.
           rememberPushPreference(userId, true);
+          rememberPushOwner(userId);
         } else {
+          // La suscripción existente puede corresponder a otro usuario previo.
+          // No continuar recibiendo sus avisos si se inició una cuenta distinta.
+          if (subscription) {
+            await subscription.unsubscribe();
+            subscription = null;
+            forgetPushOwner();
+          }
           try {
             const restored = await restorePreferredPush(ready, userId);
             if (restored) {
@@ -63,7 +71,7 @@ export default function WebPushSettings({ compact = false }) {
   async function handleActivate() {
     setBusy(true); setFeedback('');
     try {
-      const sub = await activatePush(prepared);
+      const sub = await activatePush(prepared, userId);
       setPrepared(old => ({ ...old, existingSubscription: sub }));
       setEnabled(true);
       rememberPushPreference(userId, true);
@@ -79,7 +87,7 @@ export default function WebPushSettings({ compact = false }) {
       setEnabled(false);
       rememberPushPreference(userId, false);
       setPrepared(old => old ? { ...old, existingSubscription: null } : null);
-      setFeedback('Avisos desactivados en este dispositivo. Permanecen disponibles dentro de EduQuest.');
+      setFeedback('Avisos desactivados en este dispositivo. Permanecen disponibles dentro de Avisos I12.');
     } catch (error) { setFeedback(error.response?.data?.message || error.message); }
     finally { setBusy(false); }
   }
@@ -99,12 +107,12 @@ export default function WebPushSettings({ compact = false }) {
         <BellRing className="shrink-0 text-sky-400" size={24} />
         <div>
           <h2 className="text-lg font-bold">Notificaciones en este dispositivo</h2>
-          <p className="text-sm text-slate-300">Avisos institucionales y ausencias, incluso con EduQuest cerrado.</p>
+          <p className="text-sm text-slate-300">Avisos institucionales y ausencias, incluso con Avisos I12 cerrado.</p>
         </div>
       </div>
       <p className="mt-3 text-xs text-slate-400">
         Solo se pueden habilitar si aceptás el permiso del navegador. Podés desactivarlas cuando quieras.
-        En computadoras compartidas, cerrá sesión al terminar.
+        Cerrar sesión NO desactiva las notificaciones de este dispositivo. Si compartís la computadora, desactivá las notificaciones antes de salir para proteger tu privacidad.
       </p>
       {loading && <p className="mt-3 text-sm text-sky-200">Preparando servicio de notificaciones…</p>}
       {!loading && !capability.ok && <p role="status" className="mt-3 text-sm text-amber-300">{capability.reason}</p>}
@@ -131,7 +139,7 @@ export default function WebPushSettings({ compact = false }) {
   if (!compact) return settingsPanel;
   return (
     <div className="relative shrink-0">
-      <button type="button" onClick={() => setOpen(v => !v)} title="Notificaciones de EduQuest" aria-expanded={open}
+      <button type="button" onClick={() => setOpen(v => !v)} title="Notificaciones de Avisos I12" aria-expanded={open}
         className={`relative flex min-h-9 min-w-9 items-center justify-center rounded-lg border px-2 text-xs font-bold hover:bg-sky-500/15 ${enabled ? 'border-emerald-500/40 text-emerald-300' : 'border-sky-500/40 text-sky-200'}`}>
         {enabled ? <BellRing size={18} /> : <BellOff size={18} />}
         <span className="sr-only">Administrar notificaciones</span>

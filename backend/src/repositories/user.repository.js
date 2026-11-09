@@ -81,7 +81,7 @@ export const createStudentSelfSignup = ({ userData, courseId }) => {
         signupStatus: 'PENDING',
         studentProfile: {
           create: {
-            legajoStudent: `ALU-${Date.now()}`,
+            legajoStudent: null,
           },
         },
       },

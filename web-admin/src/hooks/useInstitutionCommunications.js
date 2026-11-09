@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { institutionCommunicationService as api } from '../services/institutionCommunication.service';
 export function useInstitutionCommunications(token) {
-  return useQuery({ queryKey: ['institution-communications', token], queryFn: () => api.list(token), enabled: Boolean(token) });
+  return useQuery({ queryKey: ['institution-communications', token], queryFn: () => api.list(token), enabled: Boolean(token), refetchInterval: 10_000, refetchOnWindowFocus: true });
 }
 export function useInstitutionCommunicationOptions(token, enabled) {
   return useQuery({ queryKey: ['institution-communication-options', token], queryFn: () => api.options(token), enabled: Boolean(token && enabled), retry: false });

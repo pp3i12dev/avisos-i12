@@ -25,5 +25,7 @@ model EmailVerificationToken {
   createdAt DateTime @default(now())
   expiresAt DateTime
   usedAt DateTime?
+  sentAt DateTime?
+  lastError String? @db.Text
   @@index([userId, expiresAt])
 }

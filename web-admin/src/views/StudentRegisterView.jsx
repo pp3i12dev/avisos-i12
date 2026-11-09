@@ -50,12 +50,12 @@ export default function StudentRegisterView() {
             <div><p className="text-xs font-bold uppercase tracking-widest text-[#C61515]">Avisos I12</p><h1 className="text-2xl font-extrabold">Crear cuenta</h1>
               <p className="text-sm text-slate-600">Acceso a comunicaciones del instituto, sin inscripción académica oficial.</p></div>
           </header>
-          {registered ? <div role="status" className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50 p-6">
-            <CheckCircle2 className="text-emerald-700" size={34}/><h2 className="text-xl font-bold text-emerald-900">Cuenta creada</h2>
+          {registered ? <div role="status" className={`space-y-4 rounded-xl border p-6 ${registered.verificationEmailSent ? 'border-emerald-200 bg-emerald-50' : 'border-amber-300 bg-amber-50'}`} >
+            <CheckCircle2 className={registered.verificationEmailSent ? 'text-emerald-700' : 'text-amber-700'} size={34}/><h2 className="text-xl font-bold text-slate-900">{registered.verificationEmailSent ? 'Cuenta creada · Revisá tu correo' : 'Cuenta creada · Falta enviar el correo'}</h2>
             <p className="text-sm leading-6 text-emerald-900">{registered.message}</p>
             <p className="text-sm text-slate-700">{v.role === 'STUDENT' ? 'Una vez verificado el correo, podrás usar la plataforma sin esperar aprobación.' : 'El personal registrado por cuenta propia requiere autorización institucional. Mediante invitación, el acceso es inmediato.'}</p>
             <Link to="/login" className="inline-flex rounded-xl bg-[#C61515] px-5 py-3 font-bold text-white">Ir al login</Link>
-            {!registered.verificationEmailSent && <Link to="/verificar-correo" className="ml-3 text-sm font-semibold text-red-700 underline">Solicitar nuevo enlace</Link>}
+            {!registered.verificationEmailSent && <Link to="/verificar-correo" state={{email:v.email}} className="ml-3 inline-flex text-sm font-semibold text-red-700 underline">Solicitar nuevo enlace cuando el correo institucional esté habilitado</Link>}
           </div> : <form onSubmit={submit} className="space-y-6">
             <div className="space-y-2"><label className="text-sm font-bold text-slate-800">¿Qué función desempeñás?</label>
               <select className={common} name="role" value={v.role} onChange={update}>
@@ -75,7 +75,7 @@ export default function StudentRegisterView() {
               <Field title="Teléfono móvil (opcional)" name="telefono" value={v.telefono} onChange={update} type="tel" required={false} maxLength={35}/>
             </div>
             {v.role !== 'STUDENT' && <div className="grid gap-4 sm:grid-cols-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              {v.role !== 'DIRECTOR' && <Field title="Legajo" name="legajo" value={v.legajo} onChange={update} maxLength={80}/>}
+              {v.role !== 'DIRECTOR' && <Field title="Legajo (opcional)" name="legajo" value={v.legajo} onChange={update} maxLength={80} required={false}/>}
               {v.role === 'TEACHER' && <Field title="Especialidad (opcional)" name="specialty" value={v.specialty} onChange={update} required={false} maxLength={200}/>}
               {v.role === 'DIRECTOR' && <Field title="Cargo (opcional)" name="position" value={v.position} onChange={update} required={false} maxLength={120}/>}
 

@@ -1,5 +1,6 @@
 import { notificationEmailRepository as repo } from '../repositories/notificationEmail.repository.js';
 import { sendEarlyNoticeEmail, sendInstitutionCommunicationEmail } from '../utils/mailer.js';
+import { resolveInstitutionMail } from './integrationSettings.service.js';
 
 const INTERVAL_MS = 15_000;
 let timer = null;
@@ -19,6 +20,15 @@ export const processPendingNotificationEmails = async () => {
         const notification = delivery.notification;
         if (!notification) {
           await repo.cancel(id, 'Notificación inexistente');
+          return;
+        }
+        // Si dirección todavía no habilitó correo, conservar trabajos pendientes;
+        // al guardar SMTP desde Configuración se enviarán sin agotar reintentos.
+        const institutionId = notification.institutionEvent?.institutionId
+          || notification.earlyNotice?.institutionId;
+        const mail = await resolveInstitutionMail(institutionId);
+        if (mail.provider === 'DISABLED') {
+          await repo.releaseUnconfigured(id);
           return;
         }
         let info;
@@ -80,10 +90,8 @@ export const processPendingNotificationEmails = async () => {
 };
 
 export const startNotificationEmailProcessor = () => {
-  if (process.env.NOTIFICATION_EMAIL_ENABLED !== 'true') {
-    console.info('[Avisos I12][EMAIL] Procesador desactivado');
-    return;
-  }
+  // La configuración puede activarse por institución desde el panel, sin reiniciar Express.
+  // Mantener el procesador disponible; si un destino carece de SMTP, el trabajo se conserva.
   if (timer) return;
   console.info('[Avisos I12][EMAIL] Procesador iniciado (cada 15 segundos)');
   void processPendingNotificationEmails();

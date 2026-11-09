@@ -9,6 +9,7 @@ const handle = (fn, status = 200) => async (req, res) => {
 };
 export const institutionCommunicationController = {
   list: handle(req => service.list(req.user, req.query)),
+  bulkAction: handle(req => service.bulkAction(req.user, req.body)),
   get: handle(req => service.get(req.user, req.params.id)),
   options: handle(req => service.options(req.user, req.query.institutionId)),
   create: handle(req => service.create(req.user, req.body), 201),

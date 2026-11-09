@@ -24,7 +24,7 @@ export default function ResetPasswordView() {
   return <main className="relative flex min-h-screen items-center justify-center bg-slate-950 px-5 py-12 text-white">
     <div className="absolute inset-0 opacity-40"><BackgroundLayout /></div>
     <section className="relative z-10 w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/95 p-8 shadow-2xl">
-      <span className="text-sm font-bold uppercase tracking-[.24em] text-amber-400">EduQuest · Seguridad</span><h1 className="mt-4 text-3xl font-bold">Nueva contraseña</h1>
+      <span className="text-sm font-bold uppercase tracking-[.24em] text-amber-400">Avisos I12 · Seguridad</span><h1 className="mt-4 text-3xl font-bold">Nueva contraseña</h1>
       {success ? <div role="status" className="mt-7 rounded-xl bg-emerald-950/60 p-5 text-emerald-200"><ShieldCheck className="mb-2"/>Contraseña actualizada. Ya podés iniciar sesión.</div> :
         !/^[a-f0-9]{64}$/.test(token) ? <p className="mt-5 text-amber-300">El enlace es inválido. Solicitá uno nuevo.</p> :
         <form onSubmit={submit} className="mt-7 space-y-4">

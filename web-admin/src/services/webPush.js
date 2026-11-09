@@ -8,7 +8,7 @@ function bytesFromBase64Url(text) {
 
 export function pushSupport() {
   if (typeof window === 'undefined' || !window.isSecureContext) {
-    return { ok: false, reason: 'Abrí EduQuest mediante HTTPS (o localhost en computadora).' };
+    return { ok: false, reason: 'Abrí Avisos I12 mediante HTTPS (o localhost en computadora).' };
   }
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
     return { ok: false, reason: 'Este navegador no admite Web Push.' };
@@ -16,7 +16,7 @@ export function pushSupport() {
   const iphone = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   if (iphone && !installed) {
-    return { ok: false, reason: 'En iPhone instalá la web en Inicio y abrí EduQuest desde su ícono para activar avisos.' };
+    return { ok: false, reason: 'En iPhone instalá la web en Inicio y abrí Avisos I12 desde su ícono para activar avisos.' };
   }
   if (Notification.permission === 'denied') {
     return { ok: false, reason: 'Bloqueaste las notificaciones. Cambiá el permiso desde los ajustes del navegador o dispositivo.' };
@@ -26,7 +26,7 @@ export function pushSupport() {
 
 // Preparar antes de mostrar un botón activo. iOS necesita que la llamada a
 // requestPermission / subscribe ocurra como respuesta al toque, sin esperas de red.
-export async function prepareWebPush() {
+export async function prepareWebPush(userId) {
   const capability = pushSupport();
   if (!capability.ok) throw new Error(capability.reason);
   const [config, registration] = await Promise.all([
@@ -37,13 +37,33 @@ export async function prepareWebPush() {
   await navigator.serviceWorker.ready;
   const activeWorker = registration.active || registration.waiting;
   if (!activeWorker || new URL(activeWorker.scriptURL).pathname !== '/sw.js') {
-    throw new Error('No se pudo activar el service worker de EduQuest. Revisá /sw.js y recargá la página.');
+    throw new Error('No se pudo activar el service worker de Avisos I12. Revisá /sw.js y recargá la página.');
   }
-  const existingSubscription = await registration.pushManager.getSubscription();
+  let existingSubscription = await registration.pushManager.getSubscription();
+  // Si otro usuario inicia sesión en el mismo navegador, revocar la suscripción
+  // anterior a nivel Push (no alterar la configuración institucional).
+  const previousOwner = readPushOwner();
+  if (existingSubscription && previousOwner && String(userId) !== previousOwner) {
+    await existingSubscription.unsubscribe();
+    existingSubscription = null;
+    forgetPushOwner();
+  }
+  if (existingSubscription?.options?.applicationServerKey) {
+    const expected = bytesFromBase64Url(config.publicKey);
+    const current = new Uint8Array(existingSubscription.options.applicationServerKey);
+    const matches = expected.length === current.length && expected.every((b, i) => b === current[i]);
+    if (!matches) {
+      // No reutilizar una suscripción anterior firmada con otra clave VAPID.
+      try { await api.delete('/push/subscriptions', { data: { endpoint: existingSubscription.endpoint } }); }
+      catch { /* El nuevo registro sustituirá la preferencia anterior. */ }
+      await existingSubscription.unsubscribe();
+      existingSubscription = null;
+    }
+  }
   return { registration, publicKey: config.publicKey, existingSubscription };
 }
 
-export async function activatePush(prepared) {
+export async function activatePush(prepared, userId) {
   if (!prepared?.registration || !prepared?.publicKey) throw new Error('La aplicación todavía está preparando las notificaciones.');
   const capability = pushSupport();
   if (!capability.ok) throw new Error(capability.reason);
@@ -57,6 +77,7 @@ export async function activatePush(prepared) {
   });
   try {
     await api.post('/push/subscriptions', { subscription: sub.toJSON() });
+    rememberPushOwner(userId);
   } catch (error) {
     throw new Error(error.response?.data?.message || 'No se pudo asociar este navegador a tu cuenta.');
   }
@@ -77,6 +98,7 @@ export async function deactivatePush(prepared) {
   if (!sub) return;
   await api.delete('/push/subscriptions', { data: { endpoint: sub.endpoint } });
   await sub.unsubscribe();
+  forgetPushOwner();
 }
 
 export async function testWebPush(prepared) {
@@ -86,27 +108,30 @@ export async function testWebPush(prepared) {
   return data;
 }
 
-export async function revokePushOnLogout(token) {
-  if (!token || !('serviceWorker' in navigator)) return;
-  const registration = await navigator.serviceWorker.getRegistration('/');
-  const sub = await registration?.pushManager.getSubscription();
-  if (!sub) return;
-  try {
-    await api.delete('/push/subscriptions', {
-      data: { endpoint: sub.endpoint }, headers: { Authorization: `Bearer ${token}` },
-    });
-  } finally {
-    // Aunque falle la red, este navegador deja de aceptar Push para la sesión anterior.
-    await sub.unsubscribe();
-  }
+// La identidad dueña de la suscripción actual evita filtrar avisos entre
+// cuentas distintas que usan un mismo navegador. No almacena credenciales.
+const pushOwnerKey = 'avisos-i12.push.device-owner';
+function readPushOwner() {
+  try { return localStorage.getItem(pushOwnerKey); }
+  catch { return null; }
+}
+export function rememberPushOwner(userId) {
+  if (userId === null || userId === undefined || userId === '') return;
+  try { localStorage.setItem(pushOwnerKey, String(userId)); }
+  catch { /* El estado real sigue en PostgreSQL y PushManager. */ }
+}
+export function forgetPushOwner() {
+  try { localStorage.removeItem(pushOwnerKey); }
+  catch { /* Sin almacenamiento local. */ }
 }
 
 // La preferencia solo identifica la cuenta que autorizó Push en ESTE navegador.
 // No contiene tokens, endpoints ni credenciales; nunca se comparte entre usuarios.
-const preferenceKey = userId => `eduquest.push.preferido.usuario.${String(userId)}`;
+const preferenceKey = userId => `avisos-i12.push.preferido.usuario.${String(userId)}`;
+const oldPreferenceKey = userId => `eduquest.push.preferido.usuario.${String(userId)}`;
 export function preferredPushEnabled(userId) {
   if (userId === null || userId === undefined || userId === '') return false;
-  try { return localStorage.getItem(preferenceKey(userId)) === '1'; }
+  try { return localStorage.getItem(preferenceKey(userId)) === '1' || localStorage.getItem(oldPreferenceKey(userId)) === '1'; }
   catch { return false; }
 }
 export function rememberPushPreference(userId, enabled) {
@@ -114,6 +139,7 @@ export function rememberPushPreference(userId, enabled) {
   try {
     if (enabled) localStorage.setItem(preferenceKey(userId), '1');
     else localStorage.removeItem(preferenceKey(userId));
+    localStorage.removeItem(oldPreferenceKey(userId));
   } catch { /* Almacenamiento no disponible: la activación manual continúa funcionando. */ }
 }
 
@@ -134,7 +160,7 @@ export function restorePreferredPush(prepared, userId) {
     }
     // El permiso ya fue concedido por el usuario. No se vuelve a solicitar.
     // Reasociamos exclusivamente con el usuario actualmente autenticado.
-    return activatePush({ ...prepared, existingSubscription: existing });
+    return activatePush({ ...prepared, existingSubscription: existing }, userId);
   })().finally(() => restoringByUser.delete(key));
   restoringByUser.set(key, task);
   return task;

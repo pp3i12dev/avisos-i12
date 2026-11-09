@@ -5,6 +5,7 @@ model ContactPreference {
   userId Int @unique
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   contactEmail String?
+  contactPhone String?
   emailVisibleTo String[] @default([])
   phoneVisibleTo String[] @default([])
   updatedAt DateTime @updatedAt

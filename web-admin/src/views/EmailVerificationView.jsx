@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { CheckCircle2, LoaderCircle, MailCheck, AlertCircle } from 'lucide-react';
 import api from '../api/axios';
 
 export default function EmailVerificationView() {
   const [params] = useSearchParams();
+  const location = useLocation();
   const token = params.get('token');
   const ran = useRef(false);
   const [status, setStatus] = useState(token ? 'loading' : 'resend');
   const [message, setMessage] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(location.state?.email || '');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!token || ran.current) return;

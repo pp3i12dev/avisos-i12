@@ -423,6 +423,13 @@ export const updateUserService = async (
         }
     }
 
+    for (const key of ['legajoStudent', 'legajoTeacher', 'legajoPreceptor']) {
+        if (profileData[key] !== undefined) {
+            const cleaned = String(profileData[key] || '').trim();
+            if (cleaned.length > 80) throw new ServiceError('El legajo no puede superar 80 caracteres.', 400);
+            profileData[key] = cleaned || null;
+        }
+    }
     const isSuperAdmin = requester.isSuperAdmin === true || requester.roles?.includes('SUPER_ADMIN');
     const existingUser = await getPrisma().user.findFirst({
         where: { id: Number(id), deletedAt: null, ...(isSuperAdmin ? {} : { institutionId: requester.institutionId }) },
@@ -877,6 +884,9 @@ export const updateMyProfileService = async (
         'lastName',
         'email',
         'telefono',
+        'legajoStudent',
+        'legajoTeacher',
+        'legajoPreceptor',
     ];
 
     const receivedFields = Object.keys(body);
@@ -900,9 +910,32 @@ export const updateMyProfileService = async (
     }
 
     const data = {};
+    const legajoFields = {
+        legajoStudent: 'studentProfile',
+        legajoTeacher: 'teacherProfile',
+        legajoPreceptor: 'preceptorProfile',
+    };
+    let ownProfiles = null;
+    if (receivedFields.some(field => field in legajoFields)) {
+        ownProfiles = await userRepository.findOwnUserProfile(requester.id);
+        if (!ownProfiles || !ownProfiles.isActive || ownProfiles.deletedAt) {
+            throw new ServiceError('Cuenta inactiva o inexistente.', 403);
+        }
+    }
 
     for (const field of receivedFields) {
         const value = body[field];
+
+        // Legajo opcional: solo se edita el propio perfil y no otros roles.
+        if (field in legajoFields) {
+            const profile = legajoFields[field];
+            if (!ownProfiles?.[profile]) throw new ServiceError('No tenés ese perfil institucional.', 403);
+            if (value !== null && typeof value !== 'string') throw new ServiceError('El legajo debe ser texto.', 400);
+            const cleaned = String(value ?? '').trim();
+            if (cleaned.length > 80) throw new ServiceError('El legajo no puede superar 80 caracteres.', 400);
+            data[profile] = { update: { [field]: cleaned || null } };
+            continue;
+        }
 
         // El teléfono es opcional y puede eliminarse.
         if (field === 'telefono') {
@@ -970,7 +1003,7 @@ export const updateMyProfileService = async (
     } catch (error) {
         if (error.code === 'P2002') {
             throw new ServiceError(
-                'El correo electrónico ya está registrado',
+                'El correo o legajo ya está registrado en otra cuenta.',
                 409
             );
         }

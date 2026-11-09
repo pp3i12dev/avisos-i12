@@ -16,6 +16,7 @@ import webPushRoutes from './webPush.routes.js';
 import noticeSubscriptionRoutes from './noticeSubscription.routes.js';
 import staffSignupRoutes from './staffSignup.routes.js';
 import contactDirectoryRoutes from './contactDirectory.routes.js';
+import integrationSettingsRoutes from './integrationSettings.routes.js';
 
 const router = Router();
 
@@ -38,5 +39,6 @@ router.use('/push', webPushRoutes);
 router.use('/notice-subscriptions', noticeSubscriptionRoutes);
 router.use('/staff-requests', staffSignupRoutes);
 router.use('/contact-directory', contactDirectoryRoutes);
+router.use('/integrations', integrationSettingsRoutes);
 
 export default router;

@@ -197,7 +197,7 @@ export default function InstitutionView() {
 
                         <p className="mt-2 text-sm leading-relaxed text-slate-400">
                             {isSuperAdmin
-                                ? 'Administrá los establecimientos educativos registrados en EduQuest.'
+                                ? 'Administrá los establecimientos educativos registrados en Avisos I12.'
                                 : 'Consultá y actualizá la información de tu institución educativa.'}
                         </p>
                     </div>

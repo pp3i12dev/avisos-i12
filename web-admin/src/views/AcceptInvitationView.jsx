@@ -121,15 +121,15 @@ export default function AcceptInvitationView() {
             </label>
             {invitation.role === 'DIRECTOR' && <Input label="Cargo (opcional)" name="position" value={values.position} onChange={field} required={false} placeholder="Ej.: Directora" maxLength={100} />}
             {invitation.role === 'PRECEPTOR' && <div className="space-y-4">
-              <Input label="Legajo de preceptor" name="legajo" value={values.legajo} onChange={field} maxLength={60} />
+              <Input label="Legajo de preceptor (opcional)" name="legajo" value={values.legajo} onChange={field} maxLength={60} required={false} />
               <PreceptorCoveragePicker institutionId={invitation.institution?.id} value={values.coverages} onChange={coverages => setValues(prev => ({ ...prev, coverages }))} disabled={saving} />
             </div>}
             {invitation.role === 'TEACHER' && <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Legajo de docente" name="legajo" value={values.legajo} onChange={field} maxLength={60} />
+              <Input label="Legajo de docente (opcional)" name="legajo" value={values.legajo} onChange={field} maxLength={60} required={false} />
               <Input label="Especialidad (opcional)" name="specialty" value={values.specialty} onChange={field} required={false} maxLength={150} />
             </div>}
             {student && <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <Input label="Legajo de alumno (opcional)" name="legajo" value={values.legajo} onChange={field} required={false} placeholder="Se generará uno interno si no lo conocés" />
+              <Input label="Legajo de alumno (opcional)" name="legajo" value={values.legajo} onChange={field} required={false} placeholder="Podés completarlo más adelante en Mi perfil" />
               <p className="text-sm leading-6 text-slate-700">Al activar la cuenta podrás seguir avisos de materias de una o varias carreras, años y turnos. <strong>Suscribirte no te inscribe oficialmente a cursar.</strong></p>
               {invitation.course && <p className="text-xs text-slate-600">Curso de referencia indicado por quien te invitó: {invitation.course.nombre}. No limita tus futuras suscripciones.</p>}
             </div>}

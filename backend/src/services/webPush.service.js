@@ -1,7 +1,13 @@
 import webpush from 'web-push';
 import { getPrisma } from '../config/prisma.js';
+import { resolveInstitutionPush } from './integrationSettings.service.js';
 
 const getId = reqUser => Number(reqUser?.id);
+const institutionForUser = async reqUser => {
+  if (!getId(reqUser)) fail(401, 'Sesión inválida');
+  const u = await getPrisma().user.findUnique({ where: { id: getId(reqUser) }, select: { institutionId: true } });
+  return u?.institutionId || reqUser.institutionId || null;
+};
 const fail = (status, message) => { const error = new Error(message); error.status = status; throw error; };
 
 // No permitir URLs arbitrarias: el envío HTTP desde el servidor a una URL dada por
@@ -27,7 +33,8 @@ const validSubscription = sub => sub && typeof sub === 'object'
   && validKey(sub.keys?.p256dh) && validKey(sub.keys?.auth);
 
 export async function saveSubscription(reqUser, sub) {
-  if (!webPushConfigured()) fail(503, 'Web Push no está activado o faltan claves VAPID válidas.');
+  const institutionId = await institutionForUser(reqUser);
+  if (!(await resolveInstitutionPush(institutionId)).enabled) fail(503, 'Web Push no está activado o faltan claves VAPID válidas.');
   if (!validSubscription(sub)) fail(400, 'La suscripción Push no es válida o el proveedor es desconocido.');
   const db = getPrisma();
   const userId = getId(reqUser);
@@ -81,7 +88,6 @@ export async function listSubscriptions(reqUser) {
 export async function enqueueWebPushForNotification(tx, userId, notificationId) {
   // Durante una instalación por etapas no interrumpir el sistema de avisos
   // si el nuevo módulo aún no está habilitado y migrado.
-  if (process.env.WEB_PUSH_ENABLED !== 'true') return;
   const devices = await tx.webPushSubscription.findMany({
     where: { userId, disabledAt: null }, select: { id: true }, take: 60,
   });
@@ -113,7 +119,8 @@ export const webPushConfigured = () => configure();
 // "accepted" indica aceptación por el servicio Push; no certifica entrega visual.
 const testCooldown = new Map();
 export async function sendTestWebPush(reqUser, endpoint) {
-  if (!webPushConfigured()) fail(503, 'Web Push no está configurado en el servidor.');
+  const pushSettings = await resolveInstitutionPush(await institutionForUser(reqUser));
+  if (!pushSettings.enabled) fail(503, 'Web Push no está configurado para esta institución.');
   if (typeof endpoint !== 'string' || !isTrustedPushEndpoint(endpoint)) fail(400, 'Dispositivo inválido.');
   const userId = getId(reqUser);
   const db = getPrisma();
@@ -131,8 +138,8 @@ export async function sendTestWebPush(reqUser, endpoint) {
     }, JSON.stringify({
       title: 'Avisos I12 · Notificación de prueba',
       body: '¡Listo! Tu navegador recibió una prueba. Los avisos escolares usarán este mismo canal.',
-      url: '/dashboard', tag: `eduquest-test-${now}`,
-    }), { TTL: 300 });
+      url: '/dashboard', tag: `avisos-i12-test-${now}`,
+    }), { TTL: 300, vapidDetails: { subject: pushSettings.subject, publicKey: pushSettings.publicKey, privateKey: pushSettings.privateKey } });
     return { accepted: true, message: 'El servicio Push aceptó el mensaje. Comprobá las notificaciones del dispositivo.' };
   } catch (error) {
     if ([404, 410].includes(error?.statusCode)) {
@@ -197,7 +204,7 @@ async function isObsolete(db, n) {
 let running = false;
 let interval = null;
 export async function processWebPushQueue() {
-  if (running || !webPushConfigured()) return;
+  if (running) return;
   running = true;
   const db = getPrisma();
   try {
@@ -219,17 +226,23 @@ export async function processWebPushQueue() {
       if (!claim.count) return;
       try {
         const delivery = await db.webPushDelivery.findUnique({
-          where: { id }, include: { subscription: true, notification: true },
+          where: { id }, include: { subscription: { include: { user: { select: { institutionId: true } } } }, notification: true },
         });
         if (!delivery || delivery.subscription.disabledAt || await isObsolete(db, delivery.notification)) {
           await db.webPushDelivery.update({ where: { id }, data: { status: 'CANCELLED' } });
+          return;
+        }
+        const pushSettings = await resolveInstitutionPush(delivery.subscription.user?.institutionId);
+        // No consumir intentos mientras la configuración esté desactivada.
+        if (!pushSettings.enabled) {
+          await db.webPushDelivery.update({ where: { id }, data: { status: 'PENDING', attempts: { decrement: 1 } } });
           return;
         }
         const msg = pushPreview(delivery.notification);
         const result = await webpush.sendNotification({
           endpoint: delivery.subscription.endpoint,
           keys: { p256dh: delivery.subscription.p256dh, auth: delivery.subscription.auth },
-        }, JSON.stringify({ ...msg, tag: `avisos-i12-${delivery.notification.id}` }), { TTL: 3600 });
+        }, JSON.stringify({ ...msg, tag: `avisos-i12-${delivery.notification.id}` }), { TTL: 3600, vapidDetails: { subject: pushSettings.subject, publicKey: pushSettings.publicKey, privateKey: pushSettings.privateKey } });
         await db.webPushDelivery.update({ where: { id }, data: { status: 'SENT', sentAt: new Date(), lastError: null } });
       } catch (error) {
         const status = error?.statusCode;
@@ -249,13 +262,14 @@ export async function processWebPushQueue() {
   finally { running = false; }
 }
 export function startWebPushProcessor() {
-  if (process.env.WEB_PUSH_ENABLED !== 'true') {
-    console.info('[Avisos I12][PUSH] Desactivado hasta configurar VAPID y WEB_PUSH_ENABLED=true'); return;
-  }
-  if (!webPushConfigured()) { console.warn('[Avisos I12][PUSH] Faltan credenciales VAPID válidas'); return; }
+  // El panel administrativo puede activar VAPID sin reiniciar Node.
   if (interval) return;
   void processWebPushQueue();
-  interval = setInterval(() => void processWebPushQueue(), 10000);
+  interval = setInterval(() => void processWebPushQueue(), 10_000);
   interval.unref?.();
 }
 export const publicVapidKey = () => webPushConfigured() ? process.env.WEB_PUSH_PUBLIC_KEY : null;
+export async function institutionPushConfig(reqUser) {
+  const settings = await resolveInstitutionPush(await institutionForUser(reqUser));
+  return { enabled: settings.enabled === true, publicKey: settings.enabled ? settings.publicKey : null };
+}

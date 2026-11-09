@@ -17,11 +17,11 @@ import {
     Presentation,
     UsersRound,
     Mail,
-    ChevronLeft,
     CalendarDays,
     Megaphone,
     ContactRound,
     ShieldCheck,
+    Settings2,
     LoaderCircle,
 } from 'lucide-react';
 
@@ -31,7 +31,22 @@ import { hasAny } from '../config/permissions';
 
 
 const SECTIONS = {
+    settings: {
+        glassTone: 'teal',
+        label: 'Configuración', eyebrow: 'Administración institucional',
+        description: 'Configurá el correo SMTP y las notificaciones Web Push.',
+        color: 'text-[#C61515]', iconBackground: 'bg-red-50',
+        iconBorder: 'border-red-100', hoverBorder: 'hover:border-[#C61515]/30',
+        gradient: 'from-red-500/5 via-transparent to-transparent', Icon: Settings2,
+        directPath: '/dashboard/settings',
+        items: [{ key: 'integrationSettings', label: 'Configuración institucional',
+            description: 'Correo institucional, VAPID y auditoría de cambios.',
+            path: '/dashboard/settings', action: 'integrations:manage',
+            color: 'text-red-700', iconBackground: 'bg-red-50', Icon: Settings2, hideCount: true }],
+    },
+
     notices: {
+        glassTone: 'amber',
         label: 'Avisos Tempranos',
         eyebrow: 'Comunicación institucional',
         description:
@@ -78,6 +93,7 @@ const SECTIONS = {
     },
 
     contacts: {
+        glassTone: 'teal',
         label: 'Directorio de contactos',
         eyebrow: 'Comunicación y personas',
         description: 'Encontrá docentes, preceptores y autoridades y sus medios de contacto compartidos.',
@@ -90,6 +106,7 @@ const SECTIONS = {
           path:'/dashboard/contact-directory',publicToAuthenticated:true,hideCount:true}],
     },
     communications: {
+        glassTone: 'cyan',
         label: 'Avisos Institucionales',
         eyebrow: 'Comunicación institucional',
         description: 'Consultá eventos, suspensiones de actividades y comunicados de tu institución.',
@@ -114,6 +131,7 @@ const SECTIONS = {
     },
 
     users: {
+        glassTone: 'blue',
         label: 'Gestión de usuarios',
         eyebrow: 'Administración de personas',
         description:
@@ -201,6 +219,7 @@ const SECTIONS = {
     },
 
     academic: {
+        glassTone: 'cyan',
         label: 'Gestión académica',
         eyebrow: 'Estructura educativa',
         description:
@@ -274,12 +293,20 @@ function getRoles(user) {
         .filter(Boolean);
 }
 
+const GLASS_TONES = {
+    amber: { label: 'text-amber-400', icon: 'border-amber-400/20 bg-amber-400/10 text-amber-400' },
+    cyan: { label: 'text-sky-400', icon: 'border-sky-400/20 bg-sky-400/10 text-sky-400' },
+    teal: { label: 'text-teal-300', icon: 'border-teal-400/20 bg-teal-400/10 text-teal-300' },
+    blue: { label: 'text-blue-300', icon: 'border-blue-400/20 bg-blue-400/10 text-blue-300' },
+};
+
 function ModuleCard({
     section,
     onClick,
     count,
 }) {
     const Icon = section.Icon;
+    const tone = GLASS_TONES[section.glassTone || 'cyan'];
 
     const content = (
         <>
@@ -289,39 +316,37 @@ function ModuleCard({
 
             <div className="relative flex w-full items-start justify-between gap-3">
                 <div
-                    className={`flex h-14 w-14 items-center justify-center rounded-2xl border ${section.iconBorder} ${section.iconBackground} ${section.color}`}
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl border ${tone.icon}`}
                 >
-                    <Icon size={27} strokeWidth={1.8} />
+                    <Icon size={22} strokeWidth={1.8} />
                 </div>
 
-                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-600 transition-all group-hover:border-red-200 group-hover:bg-red-50 group-hover:text-slate-950">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-slate-300 transition-all group-hover:border-sky-300/50 group-hover:bg-white/15 group-hover:text-white">
                     <ArrowUpRight size={18} />
                 </div>
             </div>
 
-            <div className="relative mt-auto pt-7">
+            <div className="relative mt-auto pt-3">
                 <p
-                    className={`mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] ${section.color}`}
+                    className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${tone.label}`}
                 >
                     {section.eyebrow}
                 </p>
 
-                <h3 className="text-xl font-bold tracking-tight text-slate-900">
+                <h3 className="text-base font-bold leading-tight tracking-tight text-white sm:text-[19px]">
                     {section.label}
                 </h3>
 
-                <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-600">
-                    {section.description}
-                </p>
+                <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-slate-300">{section.description}</p>
 
-                <div className="mt-6 flex items-center justify-between border-t border-slate-200/60 pt-4">
-                    <span className="text-xs font-semibold text-slate-700 transition-colors group-hover:text-slate-950">
+                <div className="mt-3 flex items-center justify-between border-t border-white/15 pt-3">
+                    <span className="text-[12px] font-semibold text-slate-200 transition-colors group-hover:text-white">
                         {section.directPath
                             ? 'Abrir módulo'
                             : 'Explorar módulo'}
                     </span>
 
-                    <span className="flex items-center gap-2 text-xs text-slate-600">
+                    <span className="flex items-center gap-2 text-xs text-slate-400">
                         {!section.directPath && (
                             <>
                                 {count}{' '}
@@ -339,7 +364,7 @@ function ModuleCard({
         </>
     );
 
-    const className = `i12-glass-card group relative flex min-h-[230px] w-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#DEE2E8] bg-white p-6 text-left shadow-[0_3px_16px_rgba(15,23,42,0.045)] transition-all duration-200 hover:-translate-y-1 hover:border-[#C61515]/30 hover:shadow-[0_15px_32px_rgba(15,23,42,0.10)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C61515] ${section.hoverBorder}`;
+    const className = `i12-glass-card i12-module-square group relative flex min-h-[252px] w-full xl:h-[276px] cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#4C6174] bg-[#15283c]/90 p-5 sm:p-6 text-left shadow-[0_12px_30px_rgba(11,26,43,0.17)] transition-all duration-200 hover:-translate-y-1 hover:border-[#C61515]/30 hover:shadow-[0_15px_32px_rgba(15,23,42,0.10)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C61515] ${section.hoverBorder}`;
 
     // Avisos Tempranos navega directamente a su vista.
     if (section.directPath) {
@@ -383,7 +408,7 @@ function AccessCard({
         <Link
             to={item.path}
             state={{ section: /students|teachers|preceptors|directors|invitations/.test(item.path) ? 'users' : 'academic' }}
-            className="i12-glass-card group relative flex min-h-[215px] cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#DEE2E8] bg-white p-5 shadow-sm shadow-slate-900/5 transition-all duration-200 hover:-translate-y-1 hover:border-[#C61515]/35 hover:bg-[#FFFCFC] hover:shadow-lg hover:shadow-slate-900/10 sm:p-6"
+            className="i12-glass-card i12-admin-glass-card group relative flex min-h-[215px] cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/15 bg-white/10 p-5 shadow-sm shadow-slate-900/5 transition-all duration-200 hover:-translate-y-1 hover:border-white/25 hover:shadow-lg hover:shadow-slate-900/15 sm:p-6"
         >
             <div className="flex items-start justify-between gap-3">
                 <div
@@ -421,7 +446,7 @@ function AccessCard({
                                 className="animate-spin text-rose-600"
                             />
                         ) : (
-                            <p className="text-3xl font-bold tracking-tight text-slate-900">
+                            <p className="i12-admin-count text-3xl font-bold tracking-tight text-slate-900">
                                 {typeof value === 'number'
                                     ? value.toLocaleString('es-AR')
                                     : value}
@@ -429,12 +454,12 @@ function AccessCard({
                         )}
                     </div>
                 ) : (
-                    <span className="text-xs font-semibold text-slate-700">
+                    <span className="i12-admin-muted text-xs font-semibold text-slate-700">
                         Consultar avisos
                     </span>
                 )}
 
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 transition-colors group-hover:border-red-200 group-hover:bg-red-50 group-hover:text-rose-600">
+                <span className="i12-admin-arrow flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 transition-colors group-hover:border-white/25 group-hover:bg-white/12 group-hover:text-white">
                     <ArrowRight size={17} />
                 </span>
             </div>
@@ -511,10 +536,10 @@ export default function DashboardView() {
         });
     };
 
-    const visibleSections = Object.entries(SECTIONS)
-        .filter(([, section]) =>
-            getVisibleItems(section).length > 0
-        );
+    // Orden coherente con la sidebar; los módulos no autorizados se omiten.
+    const order = ['notices', 'communications', 'contacts', 'settings', 'users', 'academic', 'subscriptions'];
+    const visibleSections = order.map(key => [key, SECTIONS[key]])
+        .filter(([, section]) => getVisibleItems(section).length > 0);
 
     const currentSection =
         activeSection && SECTIONS[activeSection]
@@ -536,16 +561,16 @@ export default function DashboardView() {
     // Los accesos rápidos reutilizan rutas existentes, sin inventar endpoints.
     if (!canShowCurrentSection) {
         return (
-            <div className="mx-auto w-full max-w-[1380px] space-y-6 pb-10">
+            <div className="mx-auto w-full max-w-[1180px] space-y-5 pb-8">
                 <section aria-labelledby="i12-modulos-titulo">
-                    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                    <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                         <div>
-                            <h2 id="i12-modulos-titulo" className="text-lg font-bold tracking-tight text-[#20242B]">Módulos principales</h2>
+                            <h2 id="i12-modulos-titulo" className="text-xl font-bold tracking-tight text-[#20242B]">Módulos principales</h2>
                             <p className="mt-1 text-xs text-slate-500">Elegí el área en la que querés trabajar.</p>
                         </div>
                     </div>
-                    {/* Dos columnas equilibradas en escritorio, una en móvil. */}
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    {/* Tarjetas glass cuadradas: 3 columnas en escritorio, 2 en tablet, 1 en celular. */}
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                         {visibleSections.map(([key, section]) => (
                             <ModuleCard
                                 key={key}
@@ -569,17 +594,8 @@ export default function DashboardView() {
     return (
         <div className="mx-auto w-full max-w-7xl space-y-7 pb-8">
 
-            <button
-                type="button"
-                onClick={() => navigate('/dashboard', { state: { home: true } })}
-                className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border-2 border-rose-700 bg-rose-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-rose-900/15 transition hover:scale-[1.03] hover:bg-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            >
-                <ChevronLeft size={21} strokeWidth={3} />
-                Volver a los módulos
-            </button>
-
             <div className="flex justify-end">
-                <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600">
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-400">
                     {visibleItems.length} {visibleItems.length === 1 ? 'opción disponible' : 'opciones disponibles'}
                 </span>
             </div>

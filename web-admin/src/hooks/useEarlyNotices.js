@@ -21,7 +21,7 @@ import {
  * - Paginación
  *
  * Actualiza los datos automáticamente
- * cada 30 segundos.
+ * cada 10 segundos.
  */
 export function useEarlyNotices(token, filters = {}) {
     return useQuery({
@@ -39,7 +39,7 @@ export function useEarlyNotices(token, filters = {}) {
 
         enabled: Boolean(token),
 
-        refetchInterval: 30_000,
+        refetchInterval: 10_000,
 
         refetchOnWindowFocus: true,
     });

@@ -7,6 +7,7 @@ router.get('/options', c.options);
 router.get('/', c.list);
 router.get('/:id', c.get);
 router.post('/', c.create);
+router.post('/bulk', c.bulkAction);
 router.patch('/:id', c.update);
 router.patch('/:id/cancel', c.cancel);
 router.delete('/:id/history', c.removeFromHistory);

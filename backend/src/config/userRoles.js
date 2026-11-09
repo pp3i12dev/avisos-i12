@@ -9,9 +9,9 @@ export const ROLE_CONFIG = {
             reactivate: 'student:reactivate',
             delete: 'student:delete',
         },
-        requiredCreateFields: ['legajoStudent'],
-        buildProfileCreate: (body) => ({ legajoStudent: body.legajoStudent }),
-        allowedProfileEdit: [],
+        requiredCreateFields: [],
+        buildProfileCreate: (body) => ({ legajoStudent: String(body.legajoStudent || '').trim() || null }),
+        allowedProfileEdit: ['legajoStudent'],
     },
     director: {
         profileField: 'directorProfile',
@@ -35,9 +35,9 @@ export const ROLE_CONFIG = {
             toggle: 'preceptor:deactivate',
             delete: 'preceptor:delete',
         },
-        requiredCreateFields: ['legajoPreceptor'],
-        buildProfileCreate: (body) => ({ legajoPreceptor: body.legajoPreceptor, shift: body.shift ?? null }),
-        allowedProfileEdit: ['shift'], // La cobertura múltiple se valida en users.service.js
+        requiredCreateFields: [],
+        buildProfileCreate: (body) => ({ legajoPreceptor: String(body.legajoPreceptor || '').trim() || null, shift: body.shift ?? null }),
+        allowedProfileEdit: ['shift', 'legajoPreceptor'], // La cobertura múltiple se valida en users.service.js
     },
     teacher: {
         profileField: 'teacherProfile',
@@ -48,9 +48,9 @@ export const ROLE_CONFIG = {
             toggle: 'teacher:deactivate',
             delete: 'teacher:delete',
         },
-        requiredCreateFields: ['legajoTeacher'],
-        buildProfileCreate: (body) => ({ legajoTeacher: body.legajoTeacher, specialty: body.specialty ?? null }),
-        allowedProfileEdit: ['specialty'],
+        requiredCreateFields: [],
+        buildProfileCreate: (body) => ({ legajoTeacher: String(body.legajoTeacher || '').trim() || null, specialty: body.specialty ?? null }),
+        allowedProfileEdit: ['specialty', 'legajoTeacher'],
     },
 };
 

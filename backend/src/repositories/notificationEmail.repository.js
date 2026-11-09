@@ -49,6 +49,16 @@ export const notificationEmailRepository = {
     });
   },
 
+  // Una configuración de correo aún no habilitada NO es un error de entrega.
+  // Devolver el trabajo a PENDING sin gastar los tres intentos de transporte.
+  releaseUnconfigured(id) {
+    return getPrisma().notificationDelivery.updateMany({
+      where: { id, status: 'PROCESSING' },
+      data: { status: 'PENDING', attempts: { decrement: 1 },
+        lastError: 'Correo institucional todavía no configurado' },
+    });
+  },
+
   cancelPendingForNotice(earlyNoticeId) {
     return getPrisma().notificationDelivery.updateMany({
       where: { channel: 'EMAIL', status: 'PENDING', notification: { earlyNoticeId, type: 'EARLY_NOTICE_PENDING' } },

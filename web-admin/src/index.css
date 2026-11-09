@@ -162,3 +162,97 @@ body { margin: 0; min-width: 320px; background: #F7F7F8; color: #20242B; }
 @media (prefers-reduced-motion:reduce) {
   .i12-glass-card, .i12-glass-card:hover { transition: none !important; transform: none !important; }
 }
+
+
+/* ETAPA 30: solo las tarjetas principales (no formularios ni tarjetas internas).
+   Cristal traslúcido, superficies cuadradas y contraste suficiente. */
+.i12-module-square {
+  background: linear-gradient(135deg, rgba(255,255,255,.79) 0%, rgba(255,255,255,.59) 54%, rgba(226,233,242,.46) 100%) !important;
+  border: 1px solid rgba(255,255,255,.88) !important;
+  box-shadow: 0 14px 30px rgba(43,53,71,.11), inset 0 1px 1px rgba(255,255,255,.95) !important;
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+}
+@media (max-width: 380px) {
+  .i12-module-square { min-height: 0; aspect-ratio: 1; }
+}
+
+
+/* ETAPA 34 · Tarjetas principales y submódulos con vidrio gris institucional.
+   Se acerca el tono al gris de la sidebar y se unifica el acabado glassy
+   tanto en el panel principal como en Gestión de usuarios y Gestión académica. */
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card) {
+  background:
+    linear-gradient(145deg,
+      rgba(100,107,117,.89) 0%,
+      rgba(83,90,100,.92) 42%,
+      rgba(67,75,85,.94) 100%) !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  outline: 1px solid rgba(255,255,255,.07);
+  outline-offset: -1px;
+  box-shadow:
+    0 16px 36px rgba(15,23,42,.16),
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -1px 0 rgba(255,255,255,.03) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+  backdrop-filter: blur(18px) saturate(125%);
+}
+.i12-workspace .i12-module-square {
+  aspect-ratio: auto !important;
+  min-height: 252px;
+}
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card)::before {
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(255,255,255,.18), transparent 58%),
+    linear-gradient(126deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.03) 28%, transparent 62%),
+    linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0));
+}
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card):hover {
+  background:
+    linear-gradient(145deg,
+      rgba(112,119,129,.91) 0%,
+      rgba(92,99,109,.94) 42%,
+      rgba(74,81,91,.96) 100%) !important;
+  border-color: rgba(255,255,255,.28) !important;
+  box-shadow:
+    0 20px 42px rgba(15,23,42,.19),
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 0 -1px 0 rgba(255,255,255,.04) !important;
+}
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card) h3 {
+  color: #F8FAFC !important;
+}
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card) p:not([class*="uppercase"]) {
+  color: #D6DEE8 !important;
+}
+.i12-workspace .i12-admin-glass-card .i12-admin-muted,
+.i12-workspace .i12-admin-glass-card [class*="text-slate-600"],
+.i12-workspace .i12-admin-glass-card [class*="text-slate-700"] {
+  color: #D6DEE8 !important;
+}
+.i12-workspace .i12-admin-glass-card [class*="text-slate-900"] {
+  color: #F8FAFC !important;
+}
+.i12-workspace .i12-admin-glass-card .i12-admin-count {
+  color: #FFFFFF !important;
+}
+.i12-workspace .i12-admin-glass-card .i12-admin-arrow {
+  border-color: rgba(255,255,255,.14) !important;
+  background: rgba(255,255,255,.08) !important;
+  color: #E2E8F0 !important;
+}
+.i12-workspace .i12-admin-glass-card:hover .i12-admin-arrow {
+  border-color: rgba(255,255,255,.25) !important;
+  background: rgba(255,255,255,.12) !important;
+  color: #FFFFFF !important;
+}
+@media(min-width:1280px){.i12-workspace .i12-module-square {height:276px}}
+
+/* ETAPA 35 · Contraste de elementos secundarios sobre gris intenso.
+   Revertimos SOLO dentro de tarjetas las conversiones de texto heredadas
+   del layout claro; las demás pantallas mantienen sus estilos habituales. */
+.i12-workspace :is(.i12-module-square, .i12-admin-glass-card) :is([class*="text-slate-200"], [class*="text-slate-300"], [class*="text-slate-400"]) {
+  color: #E2E8F0 !important;
+}
+.i12-workspace .i12-module-square [class*="border-white"] {border-color:rgba(255,255,255,.19)!important}
+.i12-workspace .i12-admin-glass-card .i12-admin-count {color:#FFFFFF!important}

@@ -1,5 +1,6 @@
 
 export const FRONTEND_PERMISSIONS = {
+    'integrations:manage': ['DIRECTOR'],
     'teacher:manage': ['DIRECTOR', 'PRECEPTOR'],
     'preceptor:manage': ['DIRECTOR', 'PRECEPTOR'],
     'director:manage': ['DIRECTOR'],

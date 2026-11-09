@@ -25,6 +25,7 @@ import InvitationsListView from '../views/InvitationListView';
 import AcceptInvitationView from '../views/AcceptInvitationView';
 import ProfileView from '../views/ProfileView';
 import ContactDirectoryView from '../views/ContactDirectoryView';
+import IntegrationSettingsView from '../views/IntegrationSettingsView';
 
 import CareersListView from '../views/CareersListView';
 import CoursesListView from '../views/CoursesListView';
@@ -125,6 +126,7 @@ export default function AppRoutes() {
 
                     <Route path="students/requests" element={<Navigate to="/dashboard/staff-requests" replace />} />
                     <Route path="contact-directory" element={<ContactDirectoryView />} />
+                    <Route path="settings" element={<RoleRoute action="integrations:manage"><IntegrationSettingsView /></RoleRoute>} />
                     <Route path="staff-requests" element={<RoleRoute action="staffSignup:review"><StaffRequestsView /></RoleRoute>} />
                     <Route path="notice-subscriptions" element={<RoleRoute action="noticeSubscriptions:manage"><NoticeSubscriptionsView /></RoleRoute>} />
                     <Route path="notice-subscriptions/admin" element={<RoleRoute action="student:enroll"><AdminNoticeSubscriptionsView /></RoleRoute>} />

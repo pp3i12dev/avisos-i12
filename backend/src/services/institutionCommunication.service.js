@@ -1,4 +1,5 @@
 import { requireFutureInstant } from '../utils/institutionDate.js';
+import { getPrisma } from '../config/prisma.js';
 import { institutionCommunicationRepository as repo } from '../repositories/institutionCommunication.repository.js';
 
 const fail = (message, status = 400) => { const e = new Error(message); e.status = status; throw e; };
@@ -107,6 +108,37 @@ const ensureAccess = (user, e) => {
 };
 
 export const institutionCommunicationService = {
+  async bulkAction(user, body = {}) {
+    const action = body.action;
+    if (!['cancel', 'delete-history'].includes(action)) fail('Acción masiva inválida.');
+    const ids = Array.isArray(body.ids) ? body.ids.map(intId) : [];
+    if (!ids.length || ids.length > 100 || new Set(ids).size !== ids.length) fail('Elegí entre 1 y 100 comunicaciones distintas.');
+    if (!isManager(user)) fail('No autorizado', 403);
+    if (action === 'delete-history' && !canDelete(user)) fail('Solo dirección y superadministración pueden eliminar el historial.', 403);
+    const db = getPrisma();
+    const scope = user.isSuperAdmin ? {} : { institutionId: institution(user) };
+    const rows = await db.institutionEvent.findMany({ where: { id: { in: ids }, deletedAt: null, ...scope }, select: { id: true, isActive: true, endsAt: true } });
+    if (rows.length !== ids.length) fail('Algunas comunicaciones no existen o están fuera de tu institución.', 404);
+    if (action === 'delete-history') {
+      if (rows.some(e => e.isActive && e.endsAt > new Date())) fail('No se pueden eliminar comunicaciones vigentes. Primero cancelalas.', 409);
+      return db.$transaction(async tx => {
+        const result = await tx.institutionEvent.updateMany({ where: { id: { in: ids }, deletedAt: null, ...scope }, data: { deletedAt: new Date(), updatedById: user.id } });
+        if (result.count !== ids.length) fail('Las comunicaciones cambiaron durante la eliminación.', 409);
+        return { processed: result.count, action };
+      });
+    }
+    if (rows.some(e => !e.isActive)) fail('Solo podés cancelar comunicaciones activas.', 409);
+    // Cada cancelación debe generar su versión y notificaciones mediante el servicio existente.
+    // Si falla una, se devuelve cantidad procesada, sin ocultar éxitos anteriores.
+    let processed = 0;
+    try {
+      for (const id of ids) { await institutionCommunicationService.cancel(user, id, body.reason || ''); processed += 1; }
+    } catch (e) {
+      const error = new Error(`Se cancelaron ${processed} de ${ids.length} comunicaciones. ${e.message}`);
+      error.status = e.status || 409; throw error;
+    }
+    return { processed, action };
+  },
   async options(user, institutionId) {
     const id = institution(user, institutionId);
     if (!isManager(user)) fail('No autorizado', 403);

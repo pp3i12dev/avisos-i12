@@ -32,6 +32,7 @@ import {
 
 import EarlyNoticeFormModal from '../components/EarlyNoticeFormModal';
 import EarlyNoticeNotifications from '../components/EarlyNoticeNotifications';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const STATUS = {
     CONFIRMED: {
@@ -604,6 +605,9 @@ export default function EarlyNoticesView({
     const [actionSuccess, setActionSuccess] = useState('');
     const [reviewDecision, setReviewDecision] = useState(null);
     const [reviewReason, setReviewReason] = useState('');
+    const [chosenIds, setChosenIds] = useState([]);
+    const [bulkDialog, setBulkDialog] = useState(null);
+    const [bulkBusy, setBulkBusy] = useState(false);
 
     const roles = getRoles(currentUser);
 
@@ -631,8 +635,9 @@ export default function EarlyNoticesView({
         data,
         isLoading,
         error,
+        refetch,
     } = useEarlyNotices(token, {
-        status: isStudentOnly ? 'CONFIRMED' : status,
+        status, // Los alumnos también deben consultar los avisos PENDIENTES y RECHAZADOS.
         mode,
         page,
         limit: 20,
@@ -662,6 +667,36 @@ export default function EarlyNoticesView({
             search.trim().toLocaleLowerCase('es')
         );
     });
+
+    const eligibleForBulk = notice => mode === 'history'
+        ? (isSuperAdmin || roles.includes('DIRECTOR'))
+        : isAuthority && notice.isActive !== false;
+    const selectable = filtered.filter(eligibleForBulk).map(n => n.id);
+    const allSelected = selectable.length > 0 && selectable.every(id => chosenIds.includes(id));
+    const toggleSelected = (id, checked) => setChosenIds(prev => checked
+        ? [...new Set([...prev, id])] : prev.filter(value => value !== id));
+    const toggleVisible = () => setChosenIds(prev => allSelected
+        ? prev.filter(id => !selectable.includes(id))
+        : [...new Set([...prev, ...selectable])]);
+    const selectedCurrent = chosenIds.filter(id => selectable.includes(id));
+    const askBulkAction = (action, ids) => {
+        if (!ids.length) return;
+        clearMessages();
+        setBulkDialog({action, ids});
+    };
+    const executeBulkAction = async () => {
+        if (!bulkDialog || bulkBusy) return;
+        setBulkBusy(true);
+        try {
+            const result = await earlyNoticeService.bulk(token, bulkDialog);
+            setChosenIds([]); setBulkDialog(null);
+            setActionSuccess(`${result.updated} aviso(s) ${bulkDialog.action === 'deactivate' ? 'desactivados' : 'retirados del historial'}.`);
+            await refetch();
+        } catch (error) {
+            setActionError(getErrorMessage(error, 'No pudo completarse la operación.'));
+            setBulkDialog(null);
+        } finally { setBulkBusy(false); }
+    };
 
     const ownsNotice = (notice) =>
         isTeacher &&
@@ -798,45 +833,8 @@ export default function EarlyNoticesView({
         }
     };
 
-    const handleDeactivate = async (notice) => {
-        if (
-            !window.confirm(
-                '¿Desactivar este aviso? El registro se conservará.'
-            )
-        ) {
-            return;
-        }
-
-        try {
-            clearMessages();
-
-            await actions.deactivate.mutateAsync(notice.id);
-
-            setActionSuccess(
-                'El aviso fue desactivado correctamente.'
-            );
-        } catch (err) {
-            setActionError(
-                getErrorMessage(
-                    err,
-                    'No se pudo desactivar el aviso.'
-                )
-            );
-        }
-    };
-
-    const handleDeleteHistory = async (notice) => {
-        if (!window.confirm('¿Eliminar este aviso del historial? No se podrá recuperar desde la interfaz.')) return;
-        try {
-            clearMessages();
-            await earlyNoticeService.deleteHistory(token, notice.id);
-            setActionSuccess('Aviso eliminado del historial.');
-            // La lista se actualiza sin modificar las notificaciones antiguas.
-            window.location.reload();
-        } catch (err) {
-            setActionError(getErrorMessage(err, 'No se pudo eliminar del historial.'));
-        }
-    };
+    const handleDeactivate = notice => askBulkAction('deactivate', [notice.id]);
+    const handleDeleteHistory = notice => askBulkAction('delete-history', [notice.id]);
 
     const actionProps = {
         canEdit,
@@ -907,7 +905,7 @@ export default function EarlyNoticesView({
             <div className="flex gap-2 rounded-xl border border-[#D8DDE3] bg-white p-2" role="tablist" aria-label="Vigencia de avisos">
                 {[['active', 'Vigentes'], ['history', 'Historial']].map(([value, label]) => (
                     <button key={value} type="button" role="tab" aria-selected={mode === value}
-                        onClick={() => { setMode(value); setPage(1); setSelectedNotice(null); }}
+                        onClick={() => { setMode(value); setPage(1); setSelectedNotice(null); setChosenIds([]); }}
                         className={`cursor-pointer rounded-lg px-5 py-2 text-sm font-semibold ${mode === value ? 'bg-[#C61515] !text-white text-[#22252B]' : 'text-[#475569] hover:bg-[#E5E7EB]'}`}>
                         {label}
                     </button>
@@ -988,9 +986,12 @@ export default function EarlyNoticesView({
                         </p>
                     </div>
 
-                    <span className="rounded-full border border-[#D8DDE3] bg-[#F1F2F4] px-3 py-1.5 text-xs font-medium text-[#475569]">
-                        {filtered.length} en esta página
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button type="button" onClick={()=>refetch()} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">Actualizar</button>
+                        {selectable.length>0&&<label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600"><input type="checkbox" checked={allSelected} onChange={toggleVisible} className="h-4 w-4 accent-[#C61515]"/> Seleccionar todos los visibles</label>}
+                        {selectedCurrent.length>0&&<button type="button" onClick={()=>askBulkAction(mode==='history'?'delete-history':'deactivate',selectedCurrent)} className="rounded-lg bg-[#C61515] px-3 py-2 text-xs font-bold text-white">{mode==='history'?'Eliminar seleccionados':'Desactivar seleccionados'} ({selectedCurrent.length})</button>}
+                        <span className="rounded-full border border-[#D8DDE3] bg-[#F1F2F4] px-3 py-1.5 text-xs font-medium text-[#475569]">{filtered.length} en esta página</span>
+                    </div>
                 </div>
 
                 {/* MÓVIL */}
@@ -1017,6 +1018,7 @@ export default function EarlyNoticesView({
                                 className="min-w-0 rounded-xl border border-slate-700/70 bg-[#F3F4F6] p-4"
                             >
                                 <div className="flex flex-wrap items-start justify-between gap-3">
+                                    {eligibleForBulk(notice)&&<input aria-label={`Seleccionar aviso ${notice.id}`} type="checkbox" checked={chosenIds.includes(notice.id)} onChange={e=>toggleSelected(notice.id,e.target.checked)} className="mt-1 h-4 w-4 accent-[#C61515]"/>}
                                     <div className="min-w-0 flex-1">
                                         <h3 className="break-words font-semibold text-[#22252B]">
                                             {fullName(getTeacher(notice))}
@@ -1098,6 +1100,7 @@ export default function EarlyNoticesView({
                 <div className="hidden min-w-0 overflow-x-auto md:block">
                     <table className="w-full min-w-[850px] table-fixed text-left text-sm">
                         <colgroup>
+                            <col className="w-[5%]" />
                             <col className="w-[15%]" />
                             <col className="w-[23%]" />
                             <col className="w-[18%]" />
@@ -1107,6 +1110,7 @@ export default function EarlyNoticesView({
 
                         <thead className="bg-[#F8FAFC]">
                             <tr className="border-b border-[#D8DDE3]">
+                                <th scope="col" className="px-2 py-4 text-xs text-slate-600">Sel.</th>
                                 {[
                                     'Estado',
                                     'Docente / Materia',
@@ -1129,7 +1133,7 @@ export default function EarlyNoticesView({
                             {isLoading && (
                                 <tr>
                                     <td
-                                        colSpan={5}
+                                        colSpan={6}
                                         className="px-6 py-14 text-center"
                                     >
                                         <Loader2
@@ -1147,7 +1151,7 @@ export default function EarlyNoticesView({
                                 filtered.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="px-6 py-14 text-center text-[#64748B]"
                                         >
                                             No se encontraron avisos.
@@ -1159,8 +1163,9 @@ export default function EarlyNoticesView({
                                 filtered.map((notice) => (
                                     <tr
                                         key={notice.id}
-                                        className="align-middle transition-colors hover:bg-slate-800/40"
+                                        className="align-middle transition-colors hover:bg-slate-50"
                                     >
+                                        <td className="px-2 py-5">{eligibleForBulk(notice)&&<input type="checkbox" aria-label={`Seleccionar aviso ${notice.id}`} checked={chosenIds.includes(notice.id)} onChange={e=>toggleSelected(notice.id,e.target.checked)} className="h-4 w-4 accent-[#C61515]"/>}</td>
                                         <td className="px-3 py-5">
                                             <StatusBadge
                                                 status={notice.status}
@@ -1280,6 +1285,13 @@ export default function EarlyNoticesView({
                 </div>, document.body
             )}
 
+            {/* Confirmación profesional: nunca usar window.confirm / alert. */}
+            <ConfirmDialog open={Boolean(bulkDialog)}
+                title={bulkDialog?.action==='delete-history'?'Eliminar avisos del historial':'Desactivar avisos'}
+                message={`Se modificarán ${bulkDialog?.ids?.length||0} aviso(s). ${bulkDialog?.action==='delete-history'?'No se mostrarán más en el historial; la operación es irreversible desde la interfaz.':'Se conservará el registro y sus futuras notificaciones pendientes se cancelarán.'}`}
+                confirmationPhrase={bulkDialog?.action==='delete-history'?'ELIMINAR':''}
+                confirmLabel={bulkBusy?'Procesando...':'Confirmar'}
+                onConfirm={executeBulkAction} onCancel={()=>{if(!bulkBusy)setBulkDialog(null)}} />
             {/* MODALES */}
             <NoticeDetails
                 notice={selectedNotice}

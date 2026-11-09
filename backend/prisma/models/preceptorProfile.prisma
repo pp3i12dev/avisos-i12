@@ -1,6 +1,6 @@
 model PreceptorProfile {
   id              Int      @id @default(autoincrement())
-  legajoPreceptor String   @unique
+  legajoPreceptor String?  @unique
   shift           String?
   createdAt       DateTime @default(now())
 

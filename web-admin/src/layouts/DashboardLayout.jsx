@@ -25,7 +25,7 @@ import {
     ShieldCheck,
     PanelLeftClose,
     PanelLeftOpen,
-    Sparkles,
+    Settings2,
     ContactRound,
     UsersRound,
     BookOpenCheck,
@@ -35,7 +35,6 @@ import { AuthContext } from '../context/AuthContext';
 import { hasAny } from '../config/permissions';
 import WebPushSettings from '../components/WebPushSettings';
 import InstallPwaButton from '../components/InstallPwaButton';
-import { revokePushOnLogout } from '../services/webPush';
 import BackgroundLayout from './BackgroundLayout';
 import logo from '../assets/images/i12-logo.png';
 
@@ -233,8 +232,14 @@ export default function DashboardLayout() {
         return !item.action || hasAny(displayRoles, item.action);
     };
     const visibleNavigation = PRIMARY_NAVIGATION.filter(canShowLink);
+    const noticeNavigation = visibleNavigation.filter(item =>
+        item.to === '/dashboard/early-notices' || item.to === '/dashboard/institution-communications');
+    const managementNavigation = visibleNavigation.filter(item =>
+        item.to !== '/dashboard/early-notices' && item.to !== '/dashboard/institution-communications'
+        && item.to !== '/dashboard/contact-directory');
+    const directoryNavigation = visibleNavigation.filter(item => item.to === '/dashboard/contact-directory');
 
-    const currentPage = [...HOME_NAVIGATION, ...visibleNavigation, ...PROFILE_NAVIGATION]
+    const currentPage = [...HOME_NAVIGATION, ...visibleNavigation, ...PROFILE_NAVIGATION, { to: '/dashboard/settings', label: 'Configuración' }]
         .filter(item => !item.dashboardSection)
         .sort((a, b) => b.to.length - a.to.length)
         .find(item => isLocationActive(location.pathname, item))?.label ||
@@ -302,11 +307,11 @@ export default function DashboardLayout() {
         setMobileMenuOpen(false);
     };
 
-    const handleLogout = async () => {
+    const handleLogout = () => {
         setMobileMenuOpen(false);
         setProfileMenuOpen(false);
-        try { await revokePushOnLogout(token); }
-        catch (error) { console.warn('[Avisos I12] No se pudo desvincular Push de este dispositivo:', error); }
+        // Cerrar sesión NO desactiva las notificaciones elegidas para este dispositivo.
+        // Si inicia otra cuenta en este navegador, WebPushSettings desuscribe a la anterior.
         // No persistir submenús de la cuenta anterior en un nuevo inicio de sesión.
         sessionStorage.removeItem('avisosi12.dashboard.section');
         logoutContext();
@@ -473,6 +478,11 @@ export default function DashboardLayout() {
                                                     Mi perfil
                                                 </Link>
 
+                                                <div className="my-2 border-t border-slate-200" />
+                                                <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Comunicación</p>
+                                                <Link to="/dashboard/early-notices" onClick={()=>setProfileMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-100"><ClipboardList size={18}/>Avisos tempranos</Link>
+                                                <Link to="/dashboard/institution-communications" onClick={()=>setProfileMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-100"><Megaphone size={18}/>Avisos institucionales</Link>
+                                                {hasAny(displayRoles,'integrations:manage')&&<Link to="/dashboard/settings" onClick={()=>setProfileMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-100"><Settings2 size={18}/>Configuración</Link>}
                                                 <button
                                                     type="button"
                                                     onClick={handleLogout}
@@ -544,27 +554,20 @@ export default function DashboardLayout() {
                             >
                                 {renderSidebarItems(HOME_NAVIGATION, { collapsed: sidebarCollapsed })}
                                 <div role="separator" className="my-3 border-t border-white/25" />
-                                {renderSidebarItems(visibleNavigation, { collapsed: sidebarCollapsed })}
+                                {renderSidebarItems(noticeNavigation, { collapsed: sidebarCollapsed })}
+                                <div role="separator" className="my-3 border-t border-white/25" />
+                                {renderSidebarItems(managementNavigation, { collapsed: sidebarCollapsed })}
+                                {directoryNavigation.length > 0 && <div role="separator" className="my-3 border-t border-white/25" />}
+                                {renderSidebarItems(directoryNavigation, { collapsed: sidebarCollapsed })}
                                 <div role="separator" className="my-3 border-t border-white/25" />
                                 {renderSidebarItems(PROFILE_NAVIGATION, { collapsed: sidebarCollapsed })}
                             </nav>
 
                             <div className="shrink-0 pt-3">
 
-                                {!sidebarCollapsed && (
-                                    <div className="mb-4 rounded-xl border border-white/15 bg-white/10 p-4">
-                                        <Sparkles
-                                            size={19}
-                                            className="mb-3 text-[#C61515]"
-                                        />
-
-                                        <p className="text-sm font-semibold text-white">
-                                            Instituto Superior de Formación Técnica Nº12
-                                        </p>
-
-                                        <p className="mt-2 text-xs leading-relaxed text-[#E3E5E8]">
-                                            Comunicación clara para toda la comunidad educativa.
-                                        </p>
+                                {hasAny(displayRoles,'integrations:manage') && (
+                                    <div className="mb-3">
+                                        {renderSidebarItems([{to:'/dashboard/settings',label:'Configuración',Icon:Settings2}],{collapsed:sidebarCollapsed})}
                                     </div>
                                 )}
 
@@ -684,13 +687,18 @@ export default function DashboardLayout() {
                                 <nav aria-label="Navegación móvil" className="space-y-1.5">
                                     {renderSidebarItems(HOME_NAVIGATION, { onNavigate: closeMobileMenu })}
                                     <div role="separator" className="my-3 border-t border-white/25" />
-                                    {renderSidebarItems(visibleNavigation, { onNavigate: closeMobileMenu })}
+                                    {renderSidebarItems(noticeNavigation, { onNavigate: closeMobileMenu })}
+                                    <div role="separator" className="my-3 border-t border-white/25" />
+                                    {renderSidebarItems(managementNavigation, { onNavigate: closeMobileMenu })}
+                                {directoryNavigation.length > 0 && <div role="separator" className="my-3 border-t border-white/25" />}
+                                {renderSidebarItems(directoryNavigation, { onNavigate: closeMobileMenu })}
                                     <div role="separator" className="my-3 border-t border-white/25" />
                                     {renderSidebarItems(PROFILE_NAVIGATION, { onNavigate: closeMobileMenu })}
                                 </nav>
                             </div>
 
                             <div className="border-t border-white/15 p-4">
+                                {hasAny(displayRoles,'integrations:manage') && <div className="mb-3">{renderSidebarItems([{to:'/dashboard/settings',label:'Configuración',Icon:Settings2}], {onNavigate:closeMobileMenu})}</div>}
                                 <button
                                     type="button"
                                     onClick={handleLogout}

@@ -1,4 +1,5 @@
 import { notificationService } from './notification.service.js';
+import { getPrisma } from '../config/prisma.js';
 import { requireCurrentOrFutureDate, requireFutureClassStart } from '../utils/institutionDate.js';
 
 import { earlyNoticeRepository as repo, createNoticeWithClasses } from '../repositories/earlyNotice.repository.js';
@@ -1092,6 +1093,50 @@ export const earlyNoticeService = {
         return repo.softDeleteHistory(notice.id, user.id);
     },
 
+    // Eliminación/desactivación múltiple en una sola transacción.
+    // Las verificaciones de permisos e institución se repiten en el servidor,
+    // aunque el navegador haya mostrado solo avisos autorizados.
+    async bulkAction(jwtUser, body = {}) {
+        const user = await getContext(jwtUser);
+        const action = body.action;
+        if (!['deactivate', 'delete-history'].includes(action)) fail(400, 'Acción masiva inválida.');
+        const ids = Array.isArray(body.ids) ? body.ids.map(id => integer(id, 'Aviso')) : [];
+        if (!ids.length || ids.length > 100 || new Set(ids).size !== ids.length) fail(400, 'Seleccioná entre 1 y 100 avisos distintos.');
+        if (!isAuthority(user)) fail(403, 'Solo una autoridad puede modificar avisos.');
+        if (action === 'delete-history' && !user.isSuperAdmin && !user.roles.includes('DIRECTOR'))
+            fail(403, 'Solo dirección y superadministración pueden eliminar del historial.');
+        const db = getPrisma();
+        const scope = user.isSuperAdmin ? {} : { institutionId: user.institutionId };
+        return db.$transaction(async tx => {
+            const rows = await tx.earlyNotice.findMany({
+                where: { id: { in: ids }, deletedAt: null, ...scope },
+                select: { id: true, isActive: true },
+            });
+            if (rows.length !== ids.length) fail(404, 'Hay avisos que no existen o están fuera de tu institución.');
+            if (action === 'deactivate' && rows.some(x => !x.isActive)) fail(409, 'Todos los avisos elegidos deben estar activos.');
+            if (action === 'delete-history') {
+                const activeFuture = await tx.earlyNotice.count({ where: { id: { in: ids }, isActive: true, ...futureClassFilter() } });
+                if (activeFuture) fail(409, 'No se pueden borrar avisos vigentes. Primero desactivalos.');
+            }
+            const data = action === 'deactivate'
+                ? { isActive: false, updatedById: user.id }
+                : { isActive: false, deletedAt: new Date(), updatedById: user.id };
+            const updated = await tx.earlyNotice.updateMany({ where: { id: { in: ids }, deletedAt: null, ...scope }, data });
+            if (updated.count !== ids.length) fail(409, 'Los avisos cambiaron mientras realizabas la operación.');
+            // Bajas y eliminaciones deben cancelar también lo que todavía estaba
+            // en cola, nunca notificar un aviso ya retirado de la vista activa.
+            await tx.notificationDelivery.updateMany({
+                where: { channel: 'EMAIL', status: 'PENDING', notification: { earlyNoticeId: { in: ids } } },
+                data: { status: 'CANCELLED', lastError: 'Aviso desactivado administrativamente' },
+            });
+            await tx.webPushDelivery.updateMany({
+                where: { status: 'PENDING', notification: { earlyNoticeId: { in: ids } } },
+                data: { status: 'CANCELLED', lastError: 'Aviso desactivado administrativamente' },
+            });
+            return { updated: updated.count, action };
+        });
+    },
+
     async deactivate(jwtUser, id) {
         const user = await getContext(jwtUser);
         const notice = await loadNotice(user, id);
@@ -1110,9 +1155,19 @@ export const earlyNoticeService = {
             );
         }
 
-        return repo.update(notice.id, {
-            isActive: false,
-            updatedById: user.id,
+        return getPrisma().$transaction(async tx => {
+            const result = await tx.earlyNotice.update({
+                where: { id: notice.id }, data: { isActive: false, updatedById: user.id },
+            });
+            await tx.notificationDelivery.updateMany({
+                where: { channel: 'EMAIL', status: 'PENDING', notification: { earlyNoticeId: notice.id } },
+                data: { status: 'CANCELLED', lastError: 'Aviso desactivado administrativamente' },
+            });
+            await tx.webPushDelivery.updateMany({
+                where: { status: 'PENDING', notification: { earlyNoticeId: notice.id } },
+                data: { status: 'CANCELLED', lastError: 'Aviso desactivado administrativamente' },
+            });
+            return result;
         });
     },
 };

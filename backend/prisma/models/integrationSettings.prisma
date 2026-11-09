@@ -1,0 +1,30 @@
+// Configuración por institución. Nunca se almacenan contraseñas o claves en texto plano.
+// Las credenciales se cifran con AES-256-GCM derivada de JWT_SECRET del servidor.
+model InstitutionIntegrationSettings {
+  id                Int      @id @default(autoincrement())
+  institutionId     Int      @unique
+  institution       Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  smtpEnabled       Boolean  @default(false)
+  smtpUser          String?
+  smtpSecret        String?  @db.Text
+  pushEnabled       Boolean  @default(false)
+  vapidPublicKey    String?
+  vapidPrivateKey   String?  @db.Text
+  vapidSubject      String?
+  updatedAt         DateTime @updatedAt
+  updatedById       Int?
+}
+
+// Auditoría sin secretos: queda quién hizo qué, cuándo y en qué institución.
+model InstitutionIntegrationAudit {
+  id             Int      @id @default(autoincrement())
+  institutionId  Int
+  institution    Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  actorId        Int
+  actorName      String
+  actorRole      String
+  action         String
+  details        Json?
+  createdAt      DateTime @default(now())
+  @@index([institutionId, createdAt])
+}

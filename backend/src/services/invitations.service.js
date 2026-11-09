@@ -74,6 +74,7 @@ export const createInvitationService = async ({ email, role, courseId, instituti
             token: invitation.token,
             role: invitation.role,
             expiresAt: invitation.expiresAt,
+            institutionId: invitation.institutionId,
         });
     } catch (error) {
         console.error('Error enviando email de invitación:', error);
@@ -162,9 +163,6 @@ export const acceptInvitationService = async (token, body = {}) => {
 
     const role = invitation.role;
     const staffLegajo = requiredText(legajo);
-    if (['TEACHER', 'PRECEPTOR'].includes(role) && !staffLegajo) {
-        throw new ServiceError('El legajo es obligatorio para docentes y preceptores.', 400);
-    }
     if (shift && !['MANANA', 'TARDE', 'NOCHE'].includes(shift)) {
         throw new ServiceError('El turno seleccionado no es válido.', 400);
     }
@@ -182,12 +180,12 @@ export const acceptInvitationService = async (token, body = {}) => {
     const preceptorCoverages = role === 'PRECEPTOR'
         ? await validatePreceptorCoverages(getPrisma(), invitation.institutionId, body.coverages) : [];
     const profileByRole = {
-        TEACHER: { teacherProfile: { create: { legajoTeacher: staffLegajo, specialty: requiredText(specialty) || null } } },
-        PRECEPTOR: { preceptorProfile: { create: { legajoPreceptor: staffLegajo, shift: legacyShift(preceptorCoverages),
+        TEACHER: { teacherProfile: { create: { legajoTeacher: staffLegajo || null, specialty: requiredText(specialty) || null } } },
+        PRECEPTOR: { preceptorProfile: { create: { legajoPreceptor: staffLegajo || null, shift: legacyShift(preceptorCoverages),
             ...(preceptorCoverages.length ? { coverages: { create: preceptorCoverages } } : {}) } } },
         DIRECTOR: { directorProfile: { create: { position: requiredText(position) || null } } },
         STUDENT: { studentProfile: { create: {
-            legajoStudent: staffLegajo || `INV-${randomUUID().slice(0, 12).toUpperCase()}`,
+            legajoStudent: staffLegajo || null,
             ...(preselectedCareerId ? { careerMemberships: { create: { careerId: preselectedCareerId } } } : {}),
         } } },
     };

@@ -72,6 +72,7 @@ router.get(
  * Crear un aviso temprano.
  */
 router.post('/multi', controller.createMultiple);
+router.post('/bulk', controller.bulkAction);
 
 router.post(
     '/',

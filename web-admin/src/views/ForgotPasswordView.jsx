@@ -18,7 +18,7 @@ export default function ForgotPasswordView() {
   return <main className="relative flex min-h-screen items-center justify-center bg-slate-950 px-5 py-14 text-white">
     <div className="absolute inset-0 opacity-40"><BackgroundLayout /></div>
     <section className="relative z-10 w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/95 p-8 shadow-2xl">
-      <span className="text-sm font-bold uppercase tracking-[.25em] text-amber-400">EduQuest · Seguridad</span>
+      <span className="text-sm font-bold uppercase tracking-[.25em] text-amber-400">Avisos I12 · Seguridad</span>
       <h1 className="mt-4 text-3xl font-bold">Recuperar contraseña</h1>
       <p className="mt-3 text-sm leading-relaxed text-slate-300">Ingresá el correo asociado a tu cuenta. Si existe, recibirás un enlace válido durante 15 minutos.</p>
       {message ? <div role="status" className="mt-6 rounded-xl bg-emerald-950/50 p-4 text-sm text-emerald-200"><ShieldCheck className="mb-2" />{message}</div> : <form onSubmit={submit} className="mt-7 space-y-4">

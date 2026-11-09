@@ -1,6 +1,6 @@
 model StudentProfile {
   id            Int      @id @default(autoincrement())
-  legajoStudent String   @unique
+  legajoStudent String?  @unique
   createdAt     DateTime @default(now())
 
   userId Int  @unique

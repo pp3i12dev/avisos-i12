@@ -22,9 +22,9 @@ const ROLE_EXTRA_FIELDS = {
 };
 
 const ROLE_REQUIRED_FIELDS = {
-    student: ['legajoStudent'],
-    teacher: ['legajoTeacher'],
-    preceptor: ['legajoPreceptor'],
+    student: [],
+    teacher: [],
+    preceptor: [],
     director: [],
 };
 
@@ -380,8 +380,7 @@ export default function UserFormModal({
                             name="legajoStudent"
                             value={form.legajoStudent}
                             onChange={handleChange}
-                            placeholder="Legajo"
-                            required
+                            placeholder="Legajo (opcional; también se puede completar desde Mi perfil)"
                             className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                         />
 
@@ -399,8 +398,7 @@ export default function UserFormModal({
                             name="legajoTeacher"
                             value={form.legajoTeacher}
                             onChange={handleChange}
-                            placeholder="Legajo"
-                            required
+                            placeholder="Legajo (opcional; también se puede completar desde Mi perfil)"
                             className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                         />
 
@@ -424,8 +422,7 @@ export default function UserFormModal({
                             name="legajoPreceptor"
                             value={form.legajoPreceptor}
                             onChange={handleChange}
-                            placeholder="Legajo"
-                            required
+                            placeholder="Legajo (opcional; también se puede completar desde Mi perfil)"
                             className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
                         />
 

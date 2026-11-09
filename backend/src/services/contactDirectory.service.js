@@ -96,7 +96,7 @@ export async function searchDirectory(actor,query={}) {
   const take=25;
   const rows=await db.user.findMany({where:{institutionId,isActive:true,deletedAt:null,OR:roleFilters,...searchWhere(query.search)},
     select:{id:true,firstName:true,lastName:true,email:true,telefono:true,isSuperAdmin:true,
-      contactPreference:{select:{contactEmail:true,emailVisibleTo:true,phoneVisibleTo:true}},
+      contactPreference:{select:{contactEmail:true,contactPhone:true,emailVisibleTo:true,phoneVisibleTo:true}},
       directorProfile:{select:{position:true}},
       preceptorProfile:{select:{coverages:{select:{careerId:true,shift:true,career:{select:{nombre:true}}}}}},
       teacherProfile:{select:{specialty:true,teacherSubjects:{where:assignmentFilter,select:{
@@ -113,7 +113,7 @@ export async function searchDirectory(actor,query={}) {
       subjectId:x.subject.id,subject:x.subject.nombre}))||[],
     careers:u.studentProfile?.careerMemberships.map(x=>x.career.nombre)||[],
     email:canViewContactField(u.contactPreference?.emailVisibleTo,actor.roles)?u.contactPreference.contactEmail||u.email:null,
-    phone:canViewContactField(u.contactPreference?.phoneVisibleTo,actor.roles)?u.telefono:null,
+    phone:canViewContactField(u.contactPreference?.phoneVisibleTo,actor.roles)?u.contactPreference.contactPhone||u.telefono:null,
   }))};
 }
 export async function myContactPreferences(actor) {
@@ -122,7 +122,8 @@ export async function myContactPreferences(actor) {
   const user=await db.user.findUnique({where:{id:actor.id},select:{email:true,telefono:true,contactPreference:true}});
   if (!user) fail('Usuario no encontrado.',404);
   return {email:user.email,phone:user.telefono,
-    contactEmail:user.contactPreference?.contactEmail||'',
+    contactEmail:user.contactPreference?.contactEmail||user.email||'',
+    contactPhone:user.contactPreference?.contactPhone||user.telefono||'',
     emailVisibleTo:user.contactPreference?.emailVisibleTo||[],
     phoneVisibleTo:user.contactPreference?.phoneVisibleTo||[]};
 }

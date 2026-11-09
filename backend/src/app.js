@@ -9,6 +9,7 @@ import cors from 'cors';
 import path from 'path';
 import { timingSafeEqual } from 'node:crypto';
 import { processWebPushQueue } from './services/webPush.service.js';
+import { processPendingNotificationEmails } from './services/notificationEmail.service.js';
 
 import apiRouter from './routes/index.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
@@ -34,6 +35,9 @@ app.use(cors({ origin: (origin, done) => {
 } }));
 app.use(express.json());
 
+// Health check sin consultas de datos privados (Render).
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'avisos-i12' }));
+
 // El envio no depende exclusivamente del temporizador del servidor.
 // Tras guardar una mutacion academica, reactivar el procesador ya con la
 // transaccion confirmada. El cron externo recupera cualquier trabajo pendiente.
@@ -43,7 +47,10 @@ app.use((req, res, next) => {
     if (changed && related) {
         res.once('finish', () => {
             if (res.statusCode >= 200 && res.statusCode < 300)
-                void processWebPushQueue().catch(err => console.error('[Avisos I12][PUSH] Post-commit:', err));
+                {
+                  void processWebPushQueue().catch(err => console.error('[Avisos I12][PUSH] Post-commit:', err));
+                  void processPendingNotificationEmails().catch(err => console.error('[Avisos I12][EMAIL] Post-commit:', err));
+                }
         });
     }
     next();
