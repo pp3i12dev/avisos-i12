@@ -119,12 +119,12 @@ export async function updateIntegrations(actor, body) {
 // NO es una cuenta SMTP ni se solicita al directivo. El SDK web-push requiere
 // un URI de contacto; una dirección https también es válida (RFC 8292).
 // Se conserva el subject anterior para no variar el identificador sin motivo.
-export function chooseVapidSubject({ existing, envSubject, smtpUser, frontendUrl, actorEmail } = {}) {
+export function chooseVapidSubject({ existing, smtpUser, frontendUrl, actorEmail } = {}) {
   const validSubject = value => typeof value === 'string' && (
     /^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(value.trim()) ||
     /^https:\/\/[^\s/]+\.[^\s/]+(?:\/[^\s]*)?$/i.test(value.trim())
   );
-  for (const value of [existing, envSubject]) {
+  for (const value of [existing]) {
     if (validSubject(value)) return value.trim();
   }
   if (typeof smtpUser === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(smtpUser.trim())) {
@@ -149,16 +149,11 @@ export async function generateInstitutionVapid(actor, body) {
   if (old?.vapidPrivateKey && body?.confirmation !== CONFIRM_VAPID_RESET) {
     err(`Esta institución ya tiene claves. Para regenerarlas escribí: ${CONFIRM_VAPID_RESET}`, 409);
   }
-  // Si la institución ya usaba VAPID del hosting, importar su pareja de claves
-  // al primer guardado evita romper suscripciones vigentes por un recambio innecesario.
-  const legacy = !old?.vapidPrivateKey && process.env.WEB_PUSH_ENABLED === 'true'
-    && process.env.WEB_PUSH_PUBLIC_KEY && process.env.WEB_PUSH_PRIVATE_KEY;
-  const keys = legacy
-    ? { publicKey: process.env.WEB_PUSH_PUBLIC_KEY, privateKey: process.env.WEB_PUSH_PRIVATE_KEY }
-    : webpush.generateVAPIDKeys();
+  // Las claves VAPID nuevas se crean desde React y se guardan cifradas en Neon.
+  // Las claves existentes no se modifican salvo regeneración confirmada.
+  const keys = webpush.generateVAPIDKeys();
   const subject = chooseVapidSubject({
     existing: old?.vapidSubject,
-    envSubject: process.env.WEB_PUSH_SUBJECT,
     smtpUser: old?.smtpEnabled ? old?.smtpUser : null,
     frontendUrl: process.env.FRONTEND_URL,
     actorEmail: actor.email,
@@ -175,36 +170,28 @@ export async function generateInstitutionVapid(actor, body) {
       await tx.webPushSubscription.updateMany({ where: { user: { institutionId: id }, disabledAt: null }, data: { disabledAt: new Date() } });
       await tx.webPushDelivery.updateMany({ where: { subscription: { user: { institutionId: id } }, status: { in: ['PENDING', 'PROCESSING'] } }, data: { status: 'CANCELLED', lastError: 'Claves VAPID regeneradas' } });
     }
-    await audit(tx, id, actor, old?.vapidPrivateKey ? 'VAPID_REGENERATED' : legacy ? 'VAPID_IMPORTED' : 'VAPID_GENERATED', { subscriptionsInvalidated: Boolean(old?.vapidPrivateKey) });
+    await audit(tx, id, actor, old?.vapidPrivateKey ? 'VAPID_REGENERATED' : 'VAPID_GENERATED', { subscriptionsInvalidated: Boolean(old?.vapidPrivateKey) });
   });
   return getIntegrationSettings(actor, id);
 }
-// Configuración en tiempo real; no se cachea en memoria para que un cambio administrativo
-// surta efecto sin reiniciar Express. El SMTP profesional por .env sigue disponible.
+// Se consulta Neon en cada petición: cambiar SMTP o VAPID desde React
+// surte efecto sin reiniciar Express. No hay credenciales de respaldo en .env.
 export async function resolveInstitutionMail(institutionId) {
   const id = positiveId(institutionId);
-  const row = id ? await settingsRecord(id) : null;
+  if (!id) return { provider: 'DISABLED' };
+  const row = await settingsRecord(id);
   if (row?.smtpEnabled && row.smtpUser && row.smtpSecret) return {
     provider: 'GMAIL', user: row.smtpUser, pass: decryptSetting(row.smtpSecret, id, 'smtp'),
   };
-  // Si nunca se configuró SMTP en la ficha (fue creada por Web Push),
-  // conservar la configuración heredada del hosting profesional.
-  if (row && !row.smtpEnabled && (row.smtpUser || row.smtpSecret)) return { provider: 'DISABLED' };
-  if (process.env.BREVO_API_KEY) return { provider: 'BREVO' };
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) return { provider: 'SMTP' };
   return { provider: 'DISABLED' };
 }
 export async function resolveInstitutionPush(institutionId) {
   const id = positiveId(institutionId);
-  const row = id ? await settingsRecord(id) : null;
+  if (!id) return { enabled: false };
+  const row = await settingsRecord(id);
   if (row?.pushEnabled && row.vapidPublicKey && row.vapidPrivateKey && row.vapidSubject) return {
     enabled: true, publicKey: row.vapidPublicKey,
     privateKey: decryptSetting(row.vapidPrivateKey, id, 'vapid'), subject: row.vapidSubject,
-  };
-  if (row && (row.vapidPrivateKey || row.vapidPublicKey)) return { enabled: false };
-  if (process.env.WEB_PUSH_ENABLED === 'true' && process.env.WEB_PUSH_PUBLIC_KEY && process.env.WEB_PUSH_PRIVATE_KEY && process.env.WEB_PUSH_SUBJECT) return {
-    enabled: true, publicKey: process.env.WEB_PUSH_PUBLIC_KEY,
-    privateKey: process.env.WEB_PUSH_PRIVATE_KEY, subject: process.env.WEB_PUSH_SUBJECT,
   };
   return { enabled: false };
 }

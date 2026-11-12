@@ -1,5 +1,4 @@
 import nodemailer from 'nodemailer';
-import { createBrevoTransport } from './brevoTransport.js';
 import { getPrisma } from '../config/prisma.js';
 import { resolveInstitutionMail } from '../services/integrationSettings.service.js';
 import { earlyNoticeCategory, institutionCategory, brandedFrom, brandedPrefix, FULL_INSTITUTION_NAME } from './emailBranding.js';
@@ -9,46 +8,46 @@ const ROLE_LABELS = {
   TEACHER: 'Docente', STUDENT: 'Alumno',
 };
 
-let transporter;
-export const getTransporter = () => {
-  if (!transporter) {
-    if (process.env.BREVO_API_KEY) {
-      transporter = createBrevoTransport({ apiKey: process.env.BREVO_API_KEY });
-      return transporter;
-    }
-    const port = Number(process.env.SMTP_PORT) || 587;
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure: port === 465,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-  }
-  return transporter;
-};
-
-// Proveedor por institución: las claves guardadas en Neon prevalecen sobre .env.
-// Las contraseñas nunca salen del backend y el servidor consulta cambios sin reiniciarse.
+// Cada institución usa EXCLUSIVAMENTE la cuenta Gmail guardada en Neon.
+// Se evita confiar en `message.from.address` o en credenciales del .env.
 export async function sendConfiguredMail(message, selectedInstitutionId = null) {
   let institutionId = selectedInstitutionId;
   if (!institutionId && typeof message.to === 'string') {
-    const recipient = await getPrisma().user.findUnique({ where: { email: message.to.toLowerCase() }, select: { institutionId: true } });
+    const recipient = await getPrisma().user.findUnique({
+      where: { email: message.to.trim().toLowerCase() },
+      select: { institutionId: true },
+    });
     institutionId = recipient?.institutionId;
   }
   const cfg = await resolveInstitutionMail(institutionId);
-  if (cfg.provider === 'DISABLED') {
+  if (cfg.provider !== 'GMAIL') {
     const error = new Error('El correo institucional no está configurado o se encuentra deshabilitado.');
-    error.code = 'MAIL_NOT_CONFIGURED'; error.status = 503; throw error;
+    error.code = 'MAIL_NOT_CONFIGURED';
+    error.status = 503;
+    throw error;
   }
-  if (cfg.provider === 'GMAIL') {
-    const sender = String(message.from || '').match(/^\s*"([^"]+)"/);
-    return nodemailer.createTransport({ host: 'smtp.gmail.com', port: 587, secure: false,
-      requireTLS: true, connectionTimeout: 12000, greetingTimeout: 10000, socketTimeout: 20000,
-      auth: { user: cfg.user, pass: cfg.pass } }).sendMail({
-      ...message, from: `"${sender?.[1] || 'Avisos I12'}" <${cfg.user}>`,
-    });
-  }
-  return getTransporter().sendMail(message);
+
+  // Mantener los nombres de marca de las plantillas existentes.
+  const visibleName = typeof message.from === 'object' && message.from !== null
+    ? message.from.name
+    : typeof message.from === 'string'
+      ? message.from.match(/^\s*"([^"]+)"/)?.[1]
+      : null;
+
+  const smtp = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    connectionTimeout: 12000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
+    auth: { user: cfg.user, pass: cfg.pass },
+  });
+  return smtp.sendMail({
+    ...message,
+    from: { name: visibleName || 'Avisos I12', address: cfg.user },
+  });
 }
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
@@ -190,7 +189,7 @@ export const sendPasswordResetEmail = async ({ to, token, expiresAt }) => {
 
 // La aprobación/rechazo de una cuenta nueva es un correo informativo; no utiliza
 // plantillas WhatsApp ni incluye contraseñas, tokens o datos académicos sensibles.
-export const sendStudentSignupDecisionEmail = ({ to, name, status, reason }) => {
+export const sendStudentSignupDecisionEmail = ({ to, name, status, reason, institutionId }) => {
   const approved = status === 'APPROVED';
   const title = approved ? 'Tu inscripción fue aprobada' : 'Novedades sobre tu inscripción';
   const url = `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')}/login`;
@@ -202,7 +201,7 @@ export const sendStudentSignupDecisionEmail = ({ to, name, status, reason }) => 
     subject: `${brandedPrefix('INSCRIPCIÓN DE ALUMNOS')} ${title}`,
     text: `Hola, ${name}.\n\n${message}\n\n${approved ? `Ingresá desde: ${url}` : 'Podés contactar a la institución para consultar.'}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;color:#172554"><h2>${escapeHtml(title)}</h2><p>Hola, ${escapeHtml(name)}.</p><p>${escapeHtml(message)}</p>${approved ? `<p><a href="${escapeHtml(url)}">Ingresar a Avisos I12</a></p>` : '<p>Consultá con tu institución.</p>'}</div>`,
-  });
+  }, institutionId);
 };
 
 

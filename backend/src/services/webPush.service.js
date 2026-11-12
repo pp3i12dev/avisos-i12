@@ -98,23 +98,6 @@ export async function enqueueWebPushForNotification(tx, userId, notificationId) 
   });
 }
 
-let configured = false;
-const configure = () => {
-  if (configured) return true;
-  if (process.env.WEB_PUSH_ENABLED !== 'true') return false;
-  const { WEB_PUSH_PUBLIC_KEY: publicKey, WEB_PUSH_PRIVATE_KEY: privateKey, WEB_PUSH_SUBJECT: subject } = process.env;
-  if (!publicKey || !privateKey || !subject) return false;
-  try {
-    webpush.setVapidDetails(subject, publicKey, privateKey);
-    configured = true;
-  } catch (error) {
-    console.error('[Avisos I12][PUSH] Configuración VAPID inválida:', error.message);
-    return false;
-  }
-  return true;
-};
-export const webPushConfigured = () => configure();
-
 // Prueba autenticada al dispositivo propio, sin generar un aviso académico ficticio.
 // "accepted" indica aceptación por el servicio Push; no certifica entrega visual.
 const testCooldown = new Map();
@@ -268,7 +251,6 @@ export function startWebPushProcessor() {
   interval = setInterval(() => void processWebPushQueue(), 10_000);
   interval.unref?.();
 }
-export const publicVapidKey = () => webPushConfigured() ? process.env.WEB_PUSH_PUBLIC_KEY : null;
 export async function institutionPushConfig(reqUser) {
   const settings = await resolveInstitutionPush(await institutionForUser(reqUser));
   return { enabled: settings.enabled === true, publicKey: settings.enabled ? settings.publicKey : null };

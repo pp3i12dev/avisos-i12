@@ -23,7 +23,7 @@ router.post('/mail/test', (req,res) => run(res, async () => {
   if (config.provider === 'DISABLED') { const e = new Error('Activá SMTP de Google antes de enviar la prueba.'); e.status = 409; throw e; }
   try {
     await sendConfiguredMail({
-      to: req.user.email, from: `"Avisos I12" <${config.user || process.env.MAIL_FROM || process.env.SMTP_USER}>`,
+      to: req.user.email, from: { name: 'Avisos I12' },
       subject: 'Avisos I12 · Prueba de correo institucional',
       text: 'Si recibiste este mensaje, el canal de correo de Avisos I12 está operativo para tu institución.',
     }, institutionId);

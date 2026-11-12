@@ -1,3 +1,4 @@
+import { resolveInstitutionMail } from './integrationSettings.service.js';
 import { getPrisma } from '../config/prisma.js';
 import { canAnyRole } from '../config/permissions.js';
 import { enqueueWebPushForNotification } from './webPush.service.js';
@@ -121,17 +122,28 @@ export async function reviewSignupRequests(requester, body, decision) {
   });
   // Correo best-effort: una caída del SMTP nunca revierte aprobaciones confirmadas en DB.
   // No crear suscripción Push para una persona que todavía no puede iniciar sesión.
-  if (process.env.SMTP_HOST && process.env.MAIL_FROM) {
-    for (let i = 0; i < affected.length; i += 5) {
-      const results = await Promise.allSettled(affected.slice(i, i + 5).map(user =>
-        sendStudentSignupDecisionEmail({ to: user.email, name: user.firstName,
-          status: decision, reason })
-      ));
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') console.warn('[EduQuest][Inscripciones] Correo no entregado para usuario',
-          affected[i + index].id, result.reason?.message);
-      });
+  // SMTP se habilita por institución en Neon; no depende de variables .env.
+  // La aprobación en DB nunca se revierte si falla el envío.
+  const mailEnabledByInstitution = new Map();
+  for (const institutionId of new Set(affected.map(user => user.institutionId))) {
+    try {
+      mailEnabledByInstitution.set(institutionId,
+        (await resolveInstitutionMail(institutionId)).provider === 'GMAIL');
+    } catch (error) {
+      console.warn('[Avisos I12][Inscripciones] No se pudo consultar SMTP institucional:', error.message);
+      mailEnabledByInstitution.set(institutionId, false);
     }
+  }
+  const recipients = affected.filter(user => mailEnabledByInstitution.get(user.institutionId));
+  for (let i = 0; i < recipients.length; i += 5) {
+    const results = await Promise.allSettled(recipients.slice(i, i + 5).map(user =>
+      sendStudentSignupDecisionEmail({ to: user.email, name: user.firstName,
+        status: decision, reason, institutionId: user.institutionId })
+    ));
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') console.warn('[Avisos I12][Inscripciones] Correo no entregado para usuario',
+        recipients[i + index].id, result.reason?.message);
+    });
   }
   return { processed: affected.length, status: decision, ids };
 }

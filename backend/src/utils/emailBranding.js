@@ -19,14 +19,9 @@ export const institutionCategory = (kind) =>
 
 export const brandedPrefix = (category) => `[${SHORT_INSTITUTION_NAME}-${category}]`;
 
-// MAIL_FROM puede ser una dirección suelta o un nombre con dirección entre < >.
-// El objeto from de Nodemailer sustituye el nombre "Mi institución" sin alterar la dirección.
-export const brandedFrom = (category, configured = process.env.MAIL_FROM || process.env.SMTP_USER) => {
-  const raw = String(configured || '').trim();
-  const match = raw.match(/<([^<>]+)>/);
-  const address = (match ? match[1] : raw).trim();
-  if (!address || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address)) {
-    throw new Error('MAIL_FROM debe contener una dirección de correo válida.');
-  }
-  return { name: `${SHORT_INSTITUTION_NAME}-${category}`, address };
-};
+// La cuenta del remitente se resuelve exclusivamente desde Neon por institución.
+// Este helper genera solo el nombre visible; sendConfiguredMail() añade la
+// dirección Gmail almacenada en institutionIntegrationSettings.smtpUser.
+export const brandedFrom = category => ({
+  name: `${SHORT_INSTITUTION_NAME}-${category}`,
+});
